@@ -1,11 +1,15 @@
-"""MCP server for hwpxlib - pyhwpx-based HWPX document creation tools.
+"""MCP server for hwpxlib - HWPX document creation tools.
 
-Uses FastMCP (mcp package) with stdio transport.
+Uses hwpxlib core library (zero external dependencies, cross-platform).
+Fallback to pyhwpx COM automation only for open_in_hwp on Windows.
+
 Run: python mcp_server/server.py
-Or register: claude mcp add --transport stdio hwpxlib -- "D:/hwpxlib/venv/Scripts/python.exe" "D:/hwpxlib/mcp_server/server.py"
+Or register: claude mcp add --transport stdio hwpxlib -- python mcp_server/server.py
 """
 import os
 import sys
+import zipfile
+import xml.etree.ElementTree as ET
 
 # Allowed file extensions for document operations
 _DOCUMENT_EXTENSIONS = {'.hwp', '.hwpx', '.hwt'}
@@ -41,6 +45,7 @@ def _validate_output_path(path: str) -> str:
         )
     return abspath
 
+
 # Ensure project root is in path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
@@ -51,17 +56,17 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("hwpxlib")
 
 
-# === Conversion Tools ===
+# === Conversion Tools (hwpxlib core — cross-platform) ===
 
 @mcp.tool()
 def convert_md_to_hwpx(md_path: str, output_path: str = "") -> str:
-    """Markdown 파일을 HWPX(한글) 문서로 변환합니다 (pyhwpx 사용).
+    """Markdown 파일을 HWPX(한글) 문서로 변환합니다.
 
     Args:
         md_path: 변환할 .md 파일의 절대 경로
         output_path: 출력 .hwpx 파일 경로 (비우면 .md를 .hwpx로 대체)
     """
-    from mcp_server.hwp_engine import HwpEngine
+    from converters.md2hwpx import convert_md_file
 
     md_path = os.path.abspath(md_path)
     if not os.path.exists(md_path):
@@ -76,9 +81,7 @@ def convert_md_to_hwpx(md_path: str, output_path: str = "") -> str:
 
     try:
         output_path = _validate_output_path(output_path)
-        with open(md_path, encoding="utf-8") as f:
-            md_text = f.read()
-        result = HwpEngine.create_from_md(md_text, output_path)
+        result = convert_md_file(md_path, output_path)
         return f"변환 완료: {result}"
     except (ValueError, Exception) as e:
         return f"변환 실패: {e}"
@@ -92,7 +95,7 @@ def convert_all_md(directory: str) -> str:
         directory: .md 파일이 있는 디렉토리 절대 경로
     """
     import glob as globmod
-    from mcp_server.hwp_engine import HwpEngine
+    from converters.md2hwpx import convert_md_file
 
     if not os.path.isdir(directory):
         return f"Error: directory not found: {directory}"
@@ -105,9 +108,7 @@ def convert_all_md(directory: str) -> str:
     for md_path in sorted(md_files):
         out_path = os.path.splitext(md_path)[0] + ".hwpx"
         try:
-            with open(md_path, encoding="utf-8") as f:
-                md_text = f.read()
-            HwpEngine.create_from_md(md_text, out_path)
+            convert_md_file(md_path, out_path)
             results.append(f"OK: {os.path.basename(out_path)}")
         except Exception as e:
             results.append(f"FAIL: {os.path.basename(md_path)} - {e}")
@@ -125,12 +126,14 @@ def create_document_from_md(md_content: str, output_path: str) -> str:
         md_content: Markdown 형식의 텍스트 내용
         output_path: 출력 .hwpx 파일의 절대 경로
     """
-    from mcp_server.hwp_engine import HwpEngine
+    from converters.md2hwpx import convert_md_to_hwpx
 
     try:
         output_path = _validate_output_path(output_path)
-        result = HwpEngine.create_from_md(md_content, output_path)
-        return f"문서 생성 완료: {result}"
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        doc = convert_md_to_hwpx(md_content)
+        doc.save(output_path)
+        return f"문서 생성 완료: {os.path.abspath(output_path)}"
     except (ValueError, Exception) as e:
         return f"문서 생성 실패: {e}"
 
@@ -142,20 +145,39 @@ def open_in_hwp(file_path: str) -> str:
     Args:
         file_path: 열 파일의 절대 경로 (.hwp, .hwpx 등)
     """
-    from mcp_server.hwp_engine import HwpEngine
-
     if not os.path.exists(file_path):
         return f"Error: file not found: {file_path}"
 
     try:
         validated_path = _validate_document_path(file_path)
-        result = HwpEngine.open_visible(validated_path)
-        return f"한글에서 열림: {result}"
+        os.startfile(validated_path)
+        return f"한글에서 열림: {validated_path}"
     except (ValueError, Exception) as e:
         return f"열기 실패: {e}"
 
 
 # === Document Reading Tools ===
+
+def _extract_text_from_hwpx(hwpx_path: str) -> str:
+    """Extract plain text from a HWPX file by parsing section XML."""
+    ns = {"hp": "http://www.hancom.co.kr/hwpml/2011/paragraph"}
+    texts = []
+
+    with zipfile.ZipFile(hwpx_path, 'r') as zf:
+        # Find all section files
+        section_files = sorted(
+            n for n in zf.namelist()
+            if n.startswith("Contents/section") and n.endswith(".xml")
+        )
+        for section_file in section_files:
+            xml_data = zf.read(section_file).decode("utf-8")
+            root = ET.fromstring(xml_data)
+            for t_elem in root.iter(f"{{{ns['hp']}}}t"):
+                if t_elem.text:
+                    texts.append(t_elem.text)
+
+    return "\n".join(texts)
+
 
 @mcp.tool()
 def read_hwpx(hwpx_path: str) -> str:
@@ -164,15 +186,24 @@ def read_hwpx(hwpx_path: str) -> str:
     Args:
         hwpx_path: 읽을 .hwpx/.hwp 파일의 절대 경로
     """
-    from mcp_server.hwp_engine import HwpEngine
-
     if not os.path.exists(hwpx_path):
         return f"Error: file not found: {hwpx_path}"
 
     try:
         validated_path = _validate_document_path(hwpx_path)
-        text = HwpEngine.read_document(validated_path)
-        return text if text.strip() else "(빈 문서)"
+        ext = os.path.splitext(validated_path)[1].lower()
+
+        if ext == '.hwpx':
+            text = _extract_text_from_hwpx(validated_path)
+            return text if text.strip() else "(빈 문서)"
+        else:
+            # .hwp (binary format) — try pyhwpx if available
+            try:
+                from mcp_server.hwp_engine import HwpEngine
+                text = HwpEngine.read_document(validated_path)
+                return text if text.strip() else "(빈 문서)"
+            except ImportError:
+                return "Error: .hwp 바이너리 형식은 pyhwpx가 필요합니다 (Windows 전용)"
     except (ValueError, Exception) as e:
         return f"읽기 실패: {e}"
 
