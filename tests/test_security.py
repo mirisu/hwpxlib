@@ -159,6 +159,14 @@ class TestThreadSafeIdGeneration:
         assert results["t2"] == expected_t2
 
 
+try:
+    import mcp  # noqa: F401
+    _has_mcp = True
+except ImportError:
+    _has_mcp = False
+
+
+@pytest.mark.skipif(not _has_mcp, reason="mcp package not installed")
 class TestMcpInputValidation:
     """Verify MCP server input validation functions."""
 
