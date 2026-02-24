@@ -4,7 +4,7 @@ Parses Markdown using md_parser, then builds a HwpxDocument using the library AP
 """
 from .md_parser import (
     parse_markdown, Heading, ParagraphNode, TableNode,
-    CodeBlock, BulletList, HorizontalRule, BlockQuote,
+    CodeBlock, BulletList, OrderedList, HorizontalRule, BlockQuote,
     TextSegment,
 )
 from hwpxlib.document import HwpxDocument
@@ -76,6 +76,15 @@ def convert_md_to_hwpx(md_text: str) -> HwpxDocument:
                 else:
                     items.append(_segments_to_plain(item_segments))
             doc.add_bullet_list(items)
+
+        elif isinstance(node, OrderedList):
+            items = []
+            for item_segments in node.items:
+                if _has_formatting(item_segments):
+                    items.append(_segments_to_format_list(item_segments))
+                else:
+                    items.append(_segments_to_plain(item_segments))
+            doc.add_ordered_list(items)
 
         elif isinstance(node, HorizontalRule):
             doc.add_horizontal_rule()

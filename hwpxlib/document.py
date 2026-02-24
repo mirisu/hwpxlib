@@ -6,7 +6,7 @@ from .constants import (
     CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6,
-    PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE,
+    PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE, PARAPR_ORDERED,
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
@@ -309,6 +309,44 @@ class HwpxDocument:
                 para = Paragraph(
                     runs=run_objects,
                     para_pr_id_ref=PARAPR_BULLET,
+                    style_id_ref=0,
+                )
+            self._elements.append(("paragraph", para))
+            paragraphs.append(para)
+        return paragraphs
+
+    def add_ordered_list(self, items: list) -> list:
+        """Add an ordered (numbered) list.
+
+        Args:
+            items: List of strings or list of segment lists (for mixed formatting).
+        """
+        paragraphs = []
+        for item in items:
+            if isinstance(item, str):
+                run = Run(text=item, char_pr_id_ref=CHARPR_BODY)
+                para = Paragraph(
+                    runs=[run],
+                    para_pr_id_ref=PARAPR_ORDERED,
+                    style_id_ref=0,
+                )
+            else:
+                # Mixed formatting: item is list of dicts
+                run_objects = []
+                for seg in item:
+                    text = seg.get("text", "")
+                    if seg.get("code"):
+                        cpr = CHARPR_INLINE_CODE
+                    elif seg.get("bold"):
+                        cpr = CHARPR_BOLD
+                    elif seg.get("italic"):
+                        cpr = CHARPR_ITALIC
+                    else:
+                        cpr = CHARPR_BODY
+                    run_objects.append(Run(text=text, char_pr_id_ref=cpr))
+                para = Paragraph(
+                    runs=run_objects,
+                    para_pr_id_ref=PARAPR_ORDERED,
                     style_id_ref=0,
                 )
             self._elements.append(("paragraph", para))

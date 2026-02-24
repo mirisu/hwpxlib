@@ -55,6 +55,12 @@ class BulletList:
 
 
 @dataclass
+class OrderedList:
+    """Ordered (numbered) list."""
+    items: list = field(default_factory=list)  # list of list of TextSegment
+
+
+@dataclass
 class HorizontalRule:
     """Horizontal rule (---, ***, ___)."""
     pass
@@ -68,7 +74,7 @@ class BlockQuote:
 
 # Type alias for AST nodes
 ASTNode = Union[Heading, ParagraphNode, TableNode, CodeBlock,
-                BulletList, HorizontalRule, BlockQuote]
+                BulletList, OrderedList, HorizontalRule, BlockQuote]
 
 
 # === Inline Formatting Parser ===
@@ -113,6 +119,7 @@ RE_FENCE_END = re.compile(r'^```\s*$')
 RE_BULLET = re.compile(r'^[-*+]\s+(.+)$')
 RE_TABLE_ROW = re.compile(r'^\|(.+)\|\s*$')
 RE_TABLE_SEP = re.compile(r'^\|[\s:]*[-]+[\s:]*')
+RE_ORDERED = re.compile(r'^\d+[.)]\s+(.+)$')
 RE_BLOCKQUOTE = re.compile(r'^>\s*(.*)')
 
 
@@ -203,6 +210,21 @@ def parse_markdown(text: str) -> list:
             ast.append(BulletList(items=items))
             continue
 
+        # --- Ordered list ---
+        m = RE_ORDERED.match(line)
+        if m:
+            items = []
+            while i < len(lines):
+                om = RE_ORDERED.match(lines[i])
+                if om:
+                    item_text = om.group(1)
+                    items.append(parse_inline(item_text))
+                    i += 1
+                else:
+                    break
+            ast.append(OrderedList(items=items))
+            continue
+
         # --- Block quote ---
         m = RE_BLOCKQUOTE.match(line)
         if m:
@@ -231,6 +253,7 @@ def parse_markdown(text: str) -> list:
                 RE_HR.match(lines[i]) or
                 RE_FENCE_START.match(lines[i]) or
                 RE_BULLET.match(lines[i]) or
+                RE_ORDERED.match(lines[i]) or
                 RE_TABLE_ROW.match(lines[i]) or
                 RE_BLOCKQUOTE.match(lines[i])):
                 if para_lines:  # already have content, stop here

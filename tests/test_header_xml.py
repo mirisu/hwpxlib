@@ -113,7 +113,9 @@ class TestParaProperties:
     def test_parapr_count(self, ref_header_tree, generated_header_tree):
         ref_pp = ref_header_tree.findall(".//hh:paraPr", NS)
         gen_pp = generated_header_tree.findall(".//hh:paraPr", NS)
-        assert len(gen_pp) == len(ref_pp) == 10
+        # Generated has more paraPrs than reference (ordered list added)
+        assert len(gen_pp) >= len(ref_pp)
+        assert len(gen_pp) == 11
 
     def test_parapr_attributes_match(self, ref_header_tree, generated_header_tree):
         ref_pps = ref_header_tree.findall(".//hh:paraPr", NS)

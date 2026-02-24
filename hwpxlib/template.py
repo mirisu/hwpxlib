@@ -18,7 +18,7 @@ from .constants import (
     CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6, PARAPR_CODE, PARAPR_BULLET,
-    PARAPR_TABLE,
+    PARAPR_TABLE, PARAPR_ORDERED,
     BORDERFILL_NONE, BORDERFILL_DEFAULT, BORDERFILL_TABLE,
     BORDERFILL_TABLE_HEADER, BORDERFILL_CODE_BLOCK, BORDERFILL_CODE_INLINE,
 )
@@ -199,6 +199,12 @@ def default_para_prs() -> list:
         ParaPr(id=PARAPR_TABLE, margin_prev=0, margin_next=0,
                line_spacing_value=130,
                align_horizontal="CENTER"),
+        # 10: 번호매기기
+        ParaPr(id=PARAPR_ORDERED, heading_type="NUMBER", heading_id_ref=1,
+               heading_level=0,
+               margin_intent=800, margin_left=800,
+               margin_next=200,
+               line_spacing_value=160),
     ]
 
 
