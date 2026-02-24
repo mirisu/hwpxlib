@@ -1,0 +1,222 @@
+"""Default document template with predefined styles.
+
+Creates all the charPr, paraPr, styles, fonts, and borderFills
+needed for a standard document based on the reference HWPX structure.
+"""
+from .constants import (
+    FONT_DEFAULT, FONT_CODE,
+    FONT_SIZE_DEFAULT, FONT_SIZE_H1, FONT_SIZE_H2, FONT_SIZE_H3,
+    FONT_SIZE_H4, FONT_SIZE_H5, FONT_SIZE_H6, FONT_SIZE_CODE,
+    FONT_SIZE_TABLE,
+    COLOR_BLACK, COLOR_HEADING, COLOR_CODE_TEXT, COLOR_CODE_BG,
+    COLOR_CODE_BLOCK_TEXT, COLOR_CODE_BLOCK_BG,
+    COLOR_TABLE_HEADER_TEXT, COLOR_TABLE_HEADER_BG,
+    COLOR_WHITE,
+    CHARPR_BODY, CHARPR_BOLD, CHARPR_ITALIC, CHARPR_BOLD_ITALIC,
+    CHARPR_H1, CHARPR_H2, CHARPR_H3, CHARPR_H4, CHARPR_H5, CHARPR_H6,
+    CHARPR_INLINE_CODE, CHARPR_CODE_BLOCK,
+    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY,
+    PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
+    PARAPR_H4, PARAPR_H5, PARAPR_H6, PARAPR_CODE, PARAPR_BULLET,
+    PARAPR_TABLE,
+    BORDERFILL_NONE, BORDERFILL_DEFAULT, BORDERFILL_TABLE,
+    BORDERFILL_TABLE_HEADER, BORDERFILL_CODE_BLOCK, BORDERFILL_CODE_INLINE,
+)
+from .models.head import CharPr, ParaPr, Style, BorderFill, Font, FontFace, FontRef
+
+
+def default_font_faces() -> list:
+    """Create font face definitions for all language groups."""
+    langs = ["HANGUL", "LATIN", "HANJA", "JAPANESE", "OTHER", "SYMBOL", "USER"]
+    faces = []
+    for lang in langs:
+        faces.append(FontFace(
+            lang=lang,
+            fonts=[
+                Font(id=0, face=FONT_DEFAULT, type="TTF"),
+                Font(id=1, face=FONT_CODE, type="TTF"),
+            ]
+        ))
+    return faces
+
+
+def default_border_fills() -> list:
+    """Create border fill definitions."""
+    return [
+        # id=1: No border, no fill (page border, etc.)
+        BorderFill(id=BORDERFILL_NONE, fill_color="none"),
+        # id=2: No border, transparent fill (default for text)
+        BorderFill(id=BORDERFILL_DEFAULT, fill_color="none"),
+        # id=3: Solid border for tables
+        BorderFill(
+            id=BORDERFILL_TABLE,
+            left_type="SOLID", left_width="0.12 mm",
+            right_type="SOLID", right_width="0.12 mm",
+            top_type="SOLID", top_width="0.12 mm",
+            bottom_type="SOLID", bottom_width="0.12 mm",
+            fill_color="none",
+        ),
+        # id=4: Table header (blue background + solid border)
+        BorderFill(
+            id=BORDERFILL_TABLE_HEADER,
+            left_type="SOLID", left_width="0.12 mm",
+            right_type="SOLID", right_width="0.12 mm",
+            top_type="SOLID", top_width="0.12 mm",
+            bottom_type="SOLID", bottom_width="0.12 mm",
+            fill_color=COLOR_TABLE_HEADER_BG,
+        ),
+        # id=5: Code block background
+        BorderFill(
+            id=BORDERFILL_CODE_BLOCK,
+            left_type="NONE", right_type="NONE",
+            top_type="NONE", bottom_type="NONE",
+            fill_color=COLOR_CODE_BLOCK_BG,
+        ),
+        # id=6: Inline code background
+        BorderFill(
+            id=BORDERFILL_CODE_INLINE,
+            left_type="NONE", right_type="NONE",
+            top_type="NONE", bottom_type="NONE",
+            fill_color=COLOR_CODE_BG,
+        ),
+    ]
+
+
+def default_char_prs() -> list:
+    """Create character property definitions."""
+    font_default = FontRef()  # all 0 (나눔고딕)
+    font_code = FontRef(hangul=1, latin=1, hanja=1, japanese=1,
+                         other=1, symbol=1, user=1)  # all 1 (나눔고딕코딩)
+
+    return [
+        # 0: 본문
+        CharPr(id=CHARPR_BODY, height=FONT_SIZE_DEFAULT,
+               text_color=COLOR_BLACK, font_ref=font_default,
+               border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 1: 볼드
+        CharPr(id=CHARPR_BOLD, height=FONT_SIZE_DEFAULT,
+               text_color=COLOR_BLACK, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 2: 이탤릭
+        CharPr(id=CHARPR_ITALIC, height=FONT_SIZE_DEFAULT,
+               text_color=COLOR_BLACK, font_ref=font_default,
+               italic=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 3: 볼드+이탤릭
+        CharPr(id=CHARPR_BOLD_ITALIC, height=FONT_SIZE_DEFAULT,
+               text_color=COLOR_BLACK, font_ref=font_default,
+               bold=True, italic=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 4: 제목1
+        CharPr(id=CHARPR_H1, height=FONT_SIZE_H1,
+               text_color=COLOR_HEADING, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 5: 제목2
+        CharPr(id=CHARPR_H2, height=FONT_SIZE_H2,
+               text_color=COLOR_HEADING, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 6: 제목3
+        CharPr(id=CHARPR_H3, height=FONT_SIZE_H3,
+               text_color=COLOR_HEADING, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 7: 제목4
+        CharPr(id=CHARPR_H4, height=FONT_SIZE_H4,
+               text_color=COLOR_HEADING, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 8: 제목5
+        CharPr(id=CHARPR_H5, height=FONT_SIZE_H5,
+               text_color=COLOR_HEADING, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 9: 제목6
+        CharPr(id=CHARPR_H6, height=FONT_SIZE_H6,
+               text_color=COLOR_HEADING, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 10: 인라인코드
+        CharPr(id=CHARPR_INLINE_CODE, height=FONT_SIZE_CODE,
+               text_color=COLOR_CODE_TEXT, font_ref=font_code,
+               border_fill_id_ref=BORDERFILL_CODE_INLINE),
+        # 11: 코드블록
+        CharPr(id=CHARPR_CODE_BLOCK, height=FONT_SIZE_CODE,
+               text_color=COLOR_CODE_BLOCK_TEXT, font_ref=font_code,
+               border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 12: 표 헤더
+        CharPr(id=CHARPR_TABLE_HEADER, height=FONT_SIZE_TABLE,
+               text_color=COLOR_TABLE_HEADER_TEXT, font_ref=font_default,
+               bold=True, border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 13: 표 본문
+        CharPr(id=CHARPR_TABLE_BODY, height=FONT_SIZE_TABLE,
+               text_color=COLOR_BLACK, font_ref=font_default,
+               border_fill_id_ref=BORDERFILL_DEFAULT),
+    ]
+
+
+def default_para_prs() -> list:
+    """Create paragraph property definitions."""
+    return [
+        # 0: 본문
+        ParaPr(id=PARAPR_BODY, margin_next=500,
+               line_spacing_value=160),
+        # 1: 제목1
+        ParaPr(id=PARAPR_H1, heading_type="OUTLINE", heading_level=0,
+               keep_with_next=1, keep_lines=1,
+               margin_prev=2400, margin_next=400,
+               line_spacing_value=160),
+        # 2: 제목2
+        ParaPr(id=PARAPR_H2, heading_type="OUTLINE", heading_level=1,
+               keep_with_next=1, keep_lines=1,
+               margin_prev=1800, margin_next=400,
+               line_spacing_value=160),
+        # 3: 제목3
+        ParaPr(id=PARAPR_H3, heading_type="OUTLINE", heading_level=2,
+               keep_with_next=1, keep_lines=1,
+               margin_prev=1200, margin_next=300,
+               line_spacing_value=160),
+        # 4: 제목4
+        ParaPr(id=PARAPR_H4, heading_type="OUTLINE", heading_level=3,
+               keep_with_next=1, keep_lines=1,
+               margin_prev=1000, margin_next=200,
+               line_spacing_value=160),
+        # 5: 제목5
+        ParaPr(id=PARAPR_H5, heading_type="OUTLINE", heading_level=4,
+               keep_with_next=1, keep_lines=1,
+               margin_prev=800, margin_next=200,
+               line_spacing_value=160),
+        # 6: 제목6
+        ParaPr(id=PARAPR_H6, heading_type="OUTLINE", heading_level=5,
+               keep_with_next=1, keep_lines=1,
+               margin_prev=600, margin_next=200,
+               line_spacing_value=160),
+        # 7: 코드블록
+        ParaPr(id=PARAPR_CODE, margin_left=400, margin_right=400,
+               margin_prev=0, margin_next=0,
+               line_spacing_value=130,
+               border_fill_id_ref=BORDERFILL_CODE_BLOCK),
+        # 8: 불릿
+        ParaPr(id=PARAPR_BULLET, heading_type="BULLET", heading_id_ref=1,
+               heading_level=0,
+               margin_intent=800, margin_left=800,
+               margin_next=200,
+               line_spacing_value=160),
+        # 9: 표
+        ParaPr(id=PARAPR_TABLE, margin_prev=0, margin_next=0,
+               line_spacing_value=130,
+               align_horizontal="CENTER"),
+    ]
+
+
+def default_styles() -> list:
+    """Create style definitions."""
+    return [
+        Style(id=0, name="본문", eng_name="Normal",
+              para_pr_id_ref=PARAPR_BODY, char_pr_id_ref=CHARPR_BODY),
+        Style(id=1, name="제목 1", eng_name="Heading 1",
+              para_pr_id_ref=PARAPR_H1, char_pr_id_ref=CHARPR_H1),
+        Style(id=2, name="제목 2", eng_name="Heading 2",
+              para_pr_id_ref=PARAPR_H2, char_pr_id_ref=CHARPR_H2),
+        Style(id=3, name="제목 3", eng_name="Heading 3",
+              para_pr_id_ref=PARAPR_H3, char_pr_id_ref=CHARPR_H3),
+        Style(id=4, name="제목 4", eng_name="Heading 4",
+              para_pr_id_ref=PARAPR_H4, char_pr_id_ref=CHARPR_H4),
+        Style(id=5, name="제목 5", eng_name="Heading 5",
+              para_pr_id_ref=PARAPR_H5, char_pr_id_ref=CHARPR_H5),
+        Style(id=6, name="제목 6", eng_name="Heading 6",
+              para_pr_id_ref=PARAPR_H6, char_pr_id_ref=CHARPR_H6),
+    ]

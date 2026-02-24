@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "hwpxlib"
+version = "0.1.0"
+description = "Python library for creating HWPX (한글) documents"
+requires-python = ">=3.10"
+license = "MIT"
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.26.0"]
+
+[project.scripts]
+md2hwpx = "md2hwpx:main"
