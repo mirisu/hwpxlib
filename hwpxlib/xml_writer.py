@@ -14,7 +14,7 @@ from .constants import (
     MARGIN_HEADER, MARGIN_FOOTER,
 )
 from .models.head import CharPr, ParaPr, Style, BorderFill, Font, FontFace
-from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup
 
 
 def _esc(text: str) -> str:
@@ -451,8 +451,9 @@ def _unique_id() -> int:
     return _id_gen.next_id()
 
 
-def write_sec_pr() -> str:
+def write_sec_pr(page_setup: PageSetup = None) -> str:
     """Write section properties (page setup) - goes in first paragraph's first run."""
+    ps = page_setup or PageSetup()
     return (
         f'<hp:secPr xmlns:hp="{NS_HP}" id=""'
         ' textDirection="HORIZONTAL" spaceColumns="1134"'
@@ -467,11 +468,11 @@ def write_sec_pr() -> str:
         ' hideFirstPageNum="0" hideFirstEmptyLine="0" showLineNumber="0" />\n'
         '        <hp:lineNumberShape restartType="0" countBy="0"'
         ' distance="0" startNumber="0" />\n'
-        f'        <hp:pagePr landscape="WIDELY" width="{PAGE_WIDTH}"'
-        f' height="{PAGE_HEIGHT}" gutterType="LEFT_ONLY">\n'
-        f'          <hp:margin header="{MARGIN_HEADER}" footer="{MARGIN_FOOTER}"'
-        f' gutter="0" left="{MARGIN_LEFT}" right="{MARGIN_RIGHT}"'
-        f' top="{MARGIN_TOP}" bottom="{MARGIN_BOTTOM}" />\n'
+        f'        <hp:pagePr landscape="{ps.orientation}" width="{ps.width}"'
+        f' height="{ps.height}" gutterType="LEFT_ONLY">\n'
+        f'          <hp:margin header="{ps.margin_header}" footer="{ps.margin_footer}"'
+        f' gutter="{ps.margin_gutter}" left="{ps.margin_left}" right="{ps.margin_right}"'
+        f' top="{ps.margin_top}" bottom="{ps.margin_bottom}" />\n'
         '        </hp:pagePr>\n'
         '        <hp:footNotePr>\n'
         '          <hp:autoNumFormat type="DIGIT" userChar=""'
@@ -523,7 +524,8 @@ def _write_run(run: Run) -> str:
     )
 
 
-def write_paragraph(para: Paragraph, is_first: bool = False) -> str:
+def write_paragraph(para: Paragraph, is_first: bool = False,
+                    page_setup: PageSetup = None) -> str:
     """Write a paragraph element."""
     parts = [
         f'<hp:p paraPrIDRef="{para.para_pr_id_ref}"'
@@ -536,7 +538,7 @@ def write_paragraph(para: Paragraph, is_first: bool = False) -> str:
         inner = ""
         # First paragraph, first run gets secPr and colPr
         if is_first and i == 0:
-            inner += write_sec_pr()
+            inner += write_sec_pr(page_setup)
             inner += (
                 '\n      <hp:ctrl xmlns:hp="'
                 + NS_HP + '">\n'
@@ -551,7 +553,7 @@ def write_paragraph(para: Paragraph, is_first: bool = False) -> str:
     if not para.runs:
         if is_first:
             run_start = '<hp:run charPrIDRef="0">'
-            inner = write_sec_pr()
+            inner = write_sec_pr(page_setup)
             inner += (
                 '\n      <hp:ctrl xmlns:hp="'
                 + NS_HP + '">\n'
@@ -690,7 +692,8 @@ def write_image_paragraph(image: Image, para_pr_id_ref: int = 0,
     return ''.join(parts)
 
 
-def write_section_xml(elements: list, first_para_idx: int = 0) -> str:
+def write_section_xml(elements: list, first_para_idx: int = 0,
+                      page_setup: PageSetup = None) -> str:
     """Generate the complete section0.xml content.
 
     elements: list of tuples:
@@ -707,16 +710,16 @@ def write_section_xml(elements: list, first_para_idx: int = 0) -> str:
     for i, elem in enumerate(elements):
         is_first = (i == first_para_idx)
         if elem[0] == "paragraph":
-            lines.append(write_paragraph(elem[1], is_first=is_first))
+            lines.append(write_paragraph(elem[1], is_first=is_first,
+                                         page_setup=page_setup))
         elif elem[0] == "table":
-            # Table gets its own paragraph wrapper
             tbl = elem[1]
             ppr = elem[2] if len(elem) > 2 else 0
             sidr = elem[3] if len(elem) > 3 else 0
             if is_first:
-                # Need a first paragraph with secPr before the table
                 empty_para = Paragraph(runs=[], para_pr_id_ref=0, style_id_ref=0)
-                lines.append(write_paragraph(empty_para, is_first=True))
+                lines.append(write_paragraph(empty_para, is_first=True,
+                                             page_setup=page_setup))
                 lines.append(write_table_paragraph(tbl, ppr, sidr))
             else:
                 lines.append(write_table_paragraph(tbl, ppr, sidr))
@@ -726,7 +729,8 @@ def write_section_xml(elements: list, first_para_idx: int = 0) -> str:
             sidr = elem[3] if len(elem) > 3 else 0
             if is_first:
                 empty_para = Paragraph(runs=[], para_pr_id_ref=0, style_id_ref=0)
-                lines.append(write_paragraph(empty_para, is_first=True))
+                lines.append(write_paragraph(empty_para, is_first=True,
+                                             page_setup=page_setup))
                 lines.append(write_image_paragraph(img, ppr, sidr))
             else:
                 lines.append(write_image_paragraph(img, ppr, sidr))

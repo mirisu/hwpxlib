@@ -12,7 +12,7 @@ from .constants import (
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
-from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup
 from .template import (
     default_font_faces, default_border_fills,
     default_char_prs, default_para_prs, default_styles,
@@ -90,6 +90,7 @@ class HwpxDocument:
         self._images = []   # list of Image objects for BinData packaging
         self._image_counter = 0
         self._seed = seed
+        self._page_setup = PageSetup()
 
     @classmethod
     def new(cls, seed: int = None) -> "HwpxDocument":
@@ -105,6 +106,30 @@ class HwpxDocument:
         """Return a fluent builder for this document."""
         from .builder import HwpxBuilder
         return HwpxBuilder(self)
+
+    @property
+    def page_setup(self) -> PageSetup:
+        """Get the current page setup."""
+        return self._page_setup
+
+    def set_page_setup(self, page_setup: PageSetup = None, **kwargs) -> "HwpxDocument":
+        """Set page size, margins, and orientation.
+
+        Args:
+            page_setup: A PageSetup object. If None, creates one from kwargs.
+            **kwargs: Passed to PageSetup constructor if page_setup is None.
+                Supported: width, height, margin_left, margin_right,
+                margin_top, margin_bottom, margin_header, margin_footer,
+                margin_gutter, orientation.
+
+        Returns:
+            self (for chaining).
+        """
+        if page_setup is not None:
+            self._page_setup = page_setup
+        else:
+            self._page_setup = PageSetup(**kwargs)
+        return self
 
     def add_heading(self, text: str, level: int = 1) -> Paragraph:
         """Add a heading paragraph (level 1-6)."""
@@ -196,7 +221,7 @@ class HwpxDocument:
         row_cnt = 1 + len(rows)  # header + data rows
 
         # Calculate column widths (equal distribution)
-        usable_width = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
+        usable_width = self._page_setup.usable_width
         col_width = usable_width // col_cnt
 
         table_rows = []
@@ -463,7 +488,8 @@ class HwpxDocument:
                 style_id_ref=0,
             )
             self._elements.append(("paragraph", para))
-        return write_section_xml(self._elements, first_para_idx=0)
+        return write_section_xml(self._elements, first_para_idx=0,
+                                page_setup=self._page_setup)
 
     def _get_preview_text(self) -> str:
         """Extract plain text for preview."""

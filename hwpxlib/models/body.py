@@ -1,6 +1,13 @@
-"""Body models: Section, Paragraph, Run, Table, etc."""
+"""Body models: Section, Paragraph, Run, Table, PageSetup, etc."""
 from dataclasses import dataclass, field
 from typing import Optional
+
+from ..constants import (
+    PAGE_WIDTH, PAGE_HEIGHT,
+    MARGIN_LEFT, MARGIN_RIGHT, MARGIN_TOP, MARGIN_BOTTOM,
+    MARGIN_HEADER, MARGIN_FOOTER, MARGIN_GUTTER,
+    mm_to_hwpunit,
+)
 
 
 @dataclass
@@ -59,6 +66,49 @@ class Image:
     height: int = 7500        # in HWPUNIT
     data: bytes = field(default=b'', repr=False)  # raw image bytes
     media_type: str = "image/png"  # MIME type
+
+
+@dataclass
+class PageSetup:
+    """Page size, margins, and orientation."""
+    width: int = PAGE_WIDTH       # 59530 (A4 210mm)
+    height: int = PAGE_HEIGHT     # 84190 (A4 297mm)
+    margin_left: int = MARGIN_LEFT
+    margin_right: int = MARGIN_RIGHT
+    margin_top: int = MARGIN_TOP
+    margin_bottom: int = MARGIN_BOTTOM
+    margin_header: int = MARGIN_HEADER
+    margin_footer: int = MARGIN_FOOTER
+    margin_gutter: int = MARGIN_GUTTER
+    orientation: str = "WIDELY"   # WIDELY = portrait, NARROWLY = landscape
+
+    @classmethod
+    def a4(cls, landscape: bool = False) -> "PageSetup":
+        """A4 (210 x 297 mm)."""
+        if landscape:
+            return cls(width=PAGE_HEIGHT, height=PAGE_WIDTH, orientation="NARROWLY")
+        return cls()
+
+    @classmethod
+    def letter(cls, landscape: bool = False) -> "PageSetup":
+        """US Letter (216 x 279 mm)."""
+        w, h = mm_to_hwpunit(216), mm_to_hwpunit(279)
+        if landscape:
+            return cls(width=h, height=w, orientation="NARROWLY")
+        return cls(width=w, height=h)
+
+    @classmethod
+    def a3(cls, landscape: bool = False) -> "PageSetup":
+        """A3 (297 x 420 mm)."""
+        w, h = mm_to_hwpunit(297), mm_to_hwpunit(420)
+        if landscape:
+            return cls(width=h, height=w, orientation="NARROWLY")
+        return cls(width=w, height=h)
+
+    @property
+    def usable_width(self) -> int:
+        """Content area width (page width minus left and right margins)."""
+        return self.width - self.margin_left - self.margin_right
 
 
 @dataclass
