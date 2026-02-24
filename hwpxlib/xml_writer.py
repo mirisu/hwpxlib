@@ -4,6 +4,7 @@ Uses string-based XML generation to ensure exact namespace prefix control,
 which is critical for HWPX compatibility with Hancom Office.
 """
 import random
+import threading
 from xml.sax.saxutils import escape as xml_escape
 
 from .constants import (
@@ -17,8 +18,17 @@ from .models.body import Paragraph, Run, Table, TableRow, TableCell
 
 
 def _esc(text: str) -> str:
-    """Escape XML special characters."""
+    """Escape XML special characters in text content."""
     return xml_escape(text)
+
+
+def _esc_attr(value: str) -> str:
+    """Escape XML special characters in attribute values.
+
+    In addition to <, >, & (handled by xml_escape), this also escapes
+    double quotes which could break out of attribute boundaries.
+    """
+    return xml_escape(str(value), {'"': '&quot;'})
 
 
 # =============================================================================
@@ -146,11 +156,11 @@ def write_prv_text(text: str = "") -> str:
 
 def _write_font_face(ff: FontFace) -> str:
     """Write a single fontface element."""
-    lines = [f'      <hh:fontface lang="{ff.lang}" fontCnt="{len(ff.fonts)}">']
+    lines = [f'      <hh:fontface lang="{_esc_attr(ff.lang)}" fontCnt="{len(ff.fonts)}">']
     for font in ff.fonts:
         lines.append(
-            f'        <hh:font id="{font.id}" face="{_esc(font.face)}"'
-            f' type="{font.type}" isEmbedded="0" />'
+            f'        <hh:font id="{font.id}" face="{_esc_attr(font.face)}"'
+            f' type="{_esc_attr(font.type)}" isEmbedded="0" />'
         )
     lines.append('      </hh:fontface>')
     return '\n'.join(lines)
@@ -163,20 +173,20 @@ def _write_border_fill(bf: BorderFill) -> str:
         f' centerLine="NONE" breakCellSeparateLine="0">',
         '        <hh:slash type="NONE" Crooked="0" isCounter="0" />',
         '        <hh:backSlash type="NONE" Crooked="0" isCounter="0" />',
-        f'        <hh:leftBorder type="{bf.left_type}" width="{bf.left_width}"'
-        f' color="{bf.left_color}" />',
-        f'        <hh:rightBorder type="{bf.right_type}" width="{bf.right_width}"'
-        f' color="{bf.right_color}" />',
-        f'        <hh:topBorder type="{bf.top_type}" width="{bf.top_width}"'
-        f' color="{bf.top_color}" />',
-        f'        <hh:bottomBorder type="{bf.bottom_type}" width="{bf.bottom_width}"'
-        f' color="{bf.bottom_color}" />',
+        f'        <hh:leftBorder type="{_esc_attr(bf.left_type)}" width="{_esc_attr(bf.left_width)}"'
+        f' color="{_esc_attr(bf.left_color)}" />',
+        f'        <hh:rightBorder type="{_esc_attr(bf.right_type)}" width="{_esc_attr(bf.right_width)}"'
+        f' color="{_esc_attr(bf.right_color)}" />',
+        f'        <hh:topBorder type="{_esc_attr(bf.top_type)}" width="{_esc_attr(bf.top_width)}"'
+        f' color="{_esc_attr(bf.top_color)}" />',
+        f'        <hh:bottomBorder type="{_esc_attr(bf.bottom_type)}" width="{_esc_attr(bf.bottom_width)}"'
+        f' color="{_esc_attr(bf.bottom_color)}" />',
         '        <hh:diagonal type="SOLID" width="0.1 mm" color="#000000" />',
     ]
     if bf.fill_color and bf.fill_color != "none":
         lines.append('        <hc:fillBrush>')
         lines.append(
-            f'          <hc:winBrush faceColor="{bf.fill_color}"'
+            f'          <hc:winBrush faceColor="{_esc_attr(bf.fill_color)}"'
             f' hatchColor="#000000" alpha="0" />'
         )
         lines.append('        </hc:fillBrush>')
@@ -196,7 +206,7 @@ def _write_char_pr(cp: CharPr) -> str:
     fr = cp.font_ref
     lines = [
         f'      <hh:charPr id="{cp.id}" height="{cp.height}"'
-        f' textColor="{cp.text_color}" shadeColor="{cp.shade_color}"'
+        f' textColor="{_esc_attr(cp.text_color)}" shadeColor="{_esc_attr(cp.shade_color)}"'
         f' useFontSpace="0" useKerning="0" symMark="NONE"'
         f' borderFillIDRef="{cp.border_fill_id_ref}">',
         f'        <hh:fontRef hangul="{fr.hangul}" latin="{fr.latin}"'
@@ -216,10 +226,10 @@ def _write_char_pr(cp: CharPr) -> str:
     if cp.italic:
         lines.append('        <hh:italic />')
     lines.append(
-        f'        <hh:underline type="{cp.underline_type}" shape="SOLID"'
-        f' color="{cp.underline_color}" />'
+        f'        <hh:underline type="{_esc_attr(cp.underline_type)}" shape="SOLID"'
+        f' color="{_esc_attr(cp.underline_color)}" />'
     )
-    lines.append(f'        <hh:strikeout shape="{cp.strikeout}" color="#000000" />')
+    lines.append(f'        <hh:strikeout shape="{_esc_attr(cp.strikeout)}" color="#000000" />')
     lines.append('        <hh:outline type="NONE" />')
     lines.append('        <hh:shadow type="NONE" color="#C0C0C0" offsetX="5" offsetY="5" />')
     lines.append('      </hh:charPr>')
@@ -232,12 +242,12 @@ def _write_para_pr(pp: ParaPr) -> str:
         f'      <hh:paraPr id="{pp.id}" tabPrIDRef="{pp.tab_pr_id_ref}"'
         f' condense="0" fontLineHeight="0" snapToGrid="1"'
         f' suppressLineNumbers="0" checked="0">',
-        f'        <hh:align horizontal="{pp.align_horizontal}" vertical="BASELINE" />',
-        f'        <hh:heading type="{pp.heading_type}" idRef="{pp.heading_id_ref}"'
+        f'        <hh:align horizontal="{_esc_attr(pp.align_horizontal)}" vertical="BASELINE" />',
+        f'        <hh:heading type="{_esc_attr(pp.heading_type)}" idRef="{pp.heading_id_ref}"'
         f' level="{pp.heading_level}" />',
         f'        <hh:breakSetting breakLatinWord="KEEP_WORD"'
         f' breakNonLatinWord="BREAK_WORD" widowOrphan="0"'
-        f' keepWithNext="{pp.keep_with_next}" keepLines="{pp.keep_lines}"'
+        f' keepWithNext="{_esc_attr(pp.keep_with_next)}" keepLines="{_esc_attr(pp.keep_lines)}"'
         f' pageBreakBefore="0" lineWrap="BREAK" />',
         '        <hh:autoSpacing eAsianEng="0" eAsianNum="0" />',
         '        <hp:switch>',
@@ -276,8 +286,8 @@ def _write_para_pr(pp: ParaPr) -> str:
 def _write_style(s: Style) -> str:
     """Write a single style element."""
     return (
-        f'      <hh:style id="{s.id}" type="{s.type}"'
-        f' name="{_esc(s.name)}" engName="{_esc(s.eng_name)}"'
+        f'      <hh:style id="{s.id}" type="{_esc_attr(s.type)}"'
+        f' name="{_esc_attr(s.name)}" engName="{_esc_attr(s.eng_name)}"'
         f' paraPrIDRef="{s.para_pr_id_ref}"'
         f' charPrIDRef="{s.char_pr_id_ref}"'
         f' nextStyleIDRef="{s.next_style_id_ref}"'
@@ -291,8 +301,6 @@ def write_header_xml(
     char_prs: list,
     para_prs: list,
     styles: list,
-    numberings_xml: str = "",
-    bullets_xml: str = "",
 ) -> str:
     """Generate the complete header.xml content."""
     lines = [
@@ -334,39 +342,33 @@ def write_header_xml(
     lines.append('    </hh:tabProperties>')
 
     # Numberings
-    if numberings_xml:
-        lines.append(numberings_xml)
-    else:
-        lines.append('    <hh:numberings itemCnt="1">')
-        lines.append('      <hh:numbering id="1" start="0">')
-        for lvl in range(1, 11):
-            lines.append(
-                f'        <hh:paraHead start="1" level="{lvl}" align="LEFT"'
-                f' useInstWidth="1" autoIndent="0" widthAdjust="0"'
-                f' textOffsetType="PERCENT" textOffset="35"'
-                f' numFormat="DIGIT" charPrIDRef="1" checkable="0" />'
-            )
-        lines.append('      </hh:numbering>')
-        lines.append('    </hh:numberings>')
+    lines.append('    <hh:numberings itemCnt="1">')
+    lines.append('      <hh:numbering id="1" start="0">')
+    for lvl in range(1, 11):
+        lines.append(
+            f'        <hh:paraHead start="1" level="{lvl}" align="LEFT"'
+            f' useInstWidth="1" autoIndent="0" widthAdjust="0"'
+            f' textOffsetType="PERCENT" textOffset="35"'
+            f' numFormat="DIGIT" charPrIDRef="1" checkable="0" />'
+        )
+    lines.append('      </hh:numbering>')
+    lines.append('    </hh:numberings>')
 
     # Bullets
-    if bullets_xml:
-        lines.append(bullets_xml)
-    else:
-        lines.append('    <hh:bullets itemCnt="1">')
+    lines.append('    <hh:bullets itemCnt="1">')
+    lines.append(
+        '      <hh:bullet id="1" char="&#x25CF;"'
+        ' checkedChar="&#x25CF;">'
+    )
+    for lvl in range(1, 11):
         lines.append(
-            '      <hh:bullet id="1" char="&#x25CF;"'
-            ' checkedChar="&#x25CF;">'
+            f'        <hh:paraHead start="1" level="{lvl}" align="LEFT"'
+            f' useInstWidth="1" autoIndent="1" widthAdjust="0"'
+            f' textOffsetType="PERCENT" textOffset="50"'
+            f' numFormat="BULLET" charPrIDRef="0" checkable="0" />'
         )
-        for lvl in range(1, 11):
-            lines.append(
-                f'        <hh:paraHead start="1" level="{lvl}" align="LEFT"'
-                f' useInstWidth="1" autoIndent="1" widthAdjust="0"'
-                f' textOffsetType="PERCENT" textOffset="50"'
-                f' numFormat="BULLET" charPrIDRef="0" checkable="0" />'
-            )
-        lines.append('      </hh:bullet>')
-        lines.append('    </hh:bullets>')
+    lines.append('      </hh:bullet>')
+    lines.append('    </hh:bullets>')
 
     lines.append('  </hh:refList>')
 
@@ -384,9 +386,54 @@ def write_header_xml(
 # SECTION0.XML (body content)
 # =============================================================================
 
+class _IdGenerator:
+    """Thread-safe element ID generator for HWPX elements.
+
+    Each thread gets its own RNG state via threading.local(), so concurrent
+    save() calls in different threads won't corrupt each other's ID sequences.
+
+    Default: random IDs (unique across documents).
+    With seed: deterministic counter (reproducible output).
+    """
+
+    def __init__(self):
+        self._local = threading.local()
+
+    def _get_rng(self) -> random.Random:
+        """Get the thread-local RNG, creating one if needed."""
+        if not hasattr(self._local, 'rng'):
+            self._local.rng = random.Random()
+        return self._local.rng
+
+    def set_seed(self, seed: int):
+        """Enable deterministic mode with a fixed seed (thread-local)."""
+        self._local.rng = random.Random(seed)
+
+    def reset(self):
+        """Reset to non-deterministic random mode (thread-local)."""
+        self._local.rng = random.Random()
+
+    def next_id(self) -> int:
+        """Generate the next element ID."""
+        return self._get_rng().randint(100000000, 999999999)
+
+
+_id_gen = _IdGenerator()
+
+
+def set_id_seed(seed: int):
+    """Set a seed for deterministic element ID generation (thread-local)."""
+    _id_gen.set_seed(seed)
+
+
+def reset_id_seed():
+    """Reset element ID generation to random mode (thread-local)."""
+    _id_gen.reset()
+
+
 def _unique_id() -> int:
     """Generate a unique-ish ID for HWPX elements."""
-    return random.randint(100000000, 999999999)
+    return _id_gen.next_id()
 
 
 def write_sec_pr() -> str:

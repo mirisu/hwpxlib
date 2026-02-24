@@ -20,6 +20,7 @@ from .xml_writer import (
     write_container_xml, write_manifest_xml, write_container_rdf,
     write_content_hpf, write_prv_text,
     write_header_xml, write_section_xml,
+    set_id_seed, reset_id_seed,
 )
 from .package import HwpxPackage
 
@@ -45,18 +46,24 @@ class HwpxDocument:
         doc.save("output.hwpx")
     """
 
-    def __init__(self):
+    def __init__(self, seed: int = None):
         self._font_faces = default_font_faces()
         self._border_fills = default_border_fills()
         self._char_prs = default_char_prs()
         self._para_prs = default_para_prs()
         self._styles = default_styles()
         self._elements = []  # list of tuples for write_section_xml
+        self._seed = seed
 
     @classmethod
-    def new(cls) -> "HwpxDocument":
-        """Create a new empty document."""
-        return cls()
+    def new(cls, seed: int = None) -> "HwpxDocument":
+        """Create a new empty document.
+
+        Args:
+            seed: Optional seed for deterministic element IDs.
+                  If None, random IDs are generated (default).
+        """
+        return cls(seed=seed)
 
     def builder(self):
         """Return a fluent builder for this document."""
@@ -329,6 +336,8 @@ class HwpxDocument:
 
     def save(self, path: str) -> None:
         """Save the document as a HWPX file."""
+        if self._seed is not None:
+            set_id_seed(self._seed)
         pkg = HwpxPackage()
 
         # Add all required files
@@ -344,9 +353,13 @@ class HwpxDocument:
         pkg.add_file('Preview/PrvText.txt', write_prv_text(self._get_preview_text()))
 
         pkg.save(path)
+        if self._seed is not None:
+            reset_id_seed()
 
     def to_bytes(self) -> bytes:
         """Return the document as bytes (for MCP server responses)."""
+        if self._seed is not None:
+            set_id_seed(self._seed)
         pkg = HwpxPackage()
         pkg.add_file('mimetype', write_mimetype())
         pkg.add_file('version.xml', write_version_xml())
@@ -358,4 +371,7 @@ class HwpxDocument:
         pkg.add_file('Contents/header.xml', self._build_header_xml())
         pkg.add_file('Contents/section0.xml', self._build_section_xml())
         pkg.add_file('Preview/PrvText.txt', write_prv_text(self._get_preview_text()))
-        return pkg.to_bytes()
+        result = pkg.to_bytes()
+        if self._seed is not None:
+            reset_id_seed()
+        return result

@@ -3,6 +3,7 @@
 HWPX is a ZIP-based format. The 'mimetype' file MUST be the first entry
 and stored uncompressed (no DEFLATE). All other XML files use DEFLATED compression.
 """
+import posixpath
 import zipfile
 import io
 
@@ -14,7 +15,21 @@ class HwpxPackage:
         self._files: dict[str, bytes] = {}
 
     def add_file(self, path: str, content: bytes | str):
-        """Add a file to the package."""
+        """Add a file to the package.
+
+        Raises ValueError if the path contains traversal sequences or is absolute.
+        """
+        # Reject absolute paths and path traversal
+        if posixpath.isabs(path) or path.startswith('/') or path.startswith('\\'):
+            raise ValueError(f"Absolute paths not allowed in ZIP entries: {path!r}")
+        # Normalize and check for .. traversal
+        normalized = posixpath.normpath(path)
+        if normalized.startswith('..') or '/../' in normalized or normalized == '..':
+            raise ValueError(f"Path traversal not allowed in ZIP entries: {path!r}")
+        # Also reject Windows absolute paths (e.g., C:\...)
+        if len(path) >= 2 and path[1] == ':':
+            raise ValueError(f"Absolute paths not allowed in ZIP entries: {path!r}")
+
         if isinstance(content, str):
             content = content.encode('utf-8')
         self._files[path] = content

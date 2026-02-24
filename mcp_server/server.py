@@ -7,6 +7,40 @@ Or register: claude mcp add --transport stdio hwpxlib -- "D:/hwpxlib/venv/Script
 import os
 import sys
 
+# Allowed file extensions for document operations
+_DOCUMENT_EXTENSIONS = {'.hwp', '.hwpx', '.hwt'}
+_INPUT_EXTENSIONS = {'.md', '.txt'}
+
+
+def _validate_document_path(path: str) -> str:
+    """Validate that a path points to a HWP/HWPX document file.
+
+    Returns the absolute path if valid, raises ValueError otherwise.
+    """
+    abspath = os.path.abspath(path)
+    ext = os.path.splitext(abspath)[1].lower()
+    if ext not in _DOCUMENT_EXTENSIONS:
+        raise ValueError(
+            f"파일 확장자가 올바르지 않습니다: {ext!r}. "
+            f"허용: {', '.join(sorted(_DOCUMENT_EXTENSIONS))}"
+        )
+    return abspath
+
+
+def _validate_output_path(path: str) -> str:
+    """Validate that an output path has a valid document extension.
+
+    Returns the absolute path if valid, raises ValueError otherwise.
+    """
+    abspath = os.path.abspath(path)
+    ext = os.path.splitext(abspath)[1].lower()
+    if ext not in _DOCUMENT_EXTENSIONS:
+        raise ValueError(
+            f"출력 파일 확장자가 올바르지 않습니다: {ext!r}. "
+            f"허용: {', '.join(sorted(_DOCUMENT_EXTENSIONS))}"
+        )
+    return abspath
+
 # Ensure project root is in path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
@@ -29,18 +63,24 @@ def convert_md_to_hwpx(md_path: str, output_path: str = "") -> str:
     """
     from mcp_server.hwp_engine import HwpEngine
 
+    md_path = os.path.abspath(md_path)
     if not os.path.exists(md_path):
         return f"Error: file not found: {md_path}"
+
+    ext = os.path.splitext(md_path)[1].lower()
+    if ext not in _INPUT_EXTENSIONS:
+        return f"Error: 입력 파일이 마크다운이 아닙니다: {ext}"
 
     if not output_path:
         output_path = os.path.splitext(md_path)[0] + ".hwpx"
 
     try:
+        output_path = _validate_output_path(output_path)
         with open(md_path, encoding="utf-8") as f:
             md_text = f.read()
         result = HwpEngine.create_from_md(md_text, output_path)
         return f"변환 완료: {result}"
-    except Exception as e:
+    except (ValueError, Exception) as e:
         return f"변환 실패: {e}"
 
 
@@ -88,9 +128,10 @@ def create_document_from_md(md_content: str, output_path: str) -> str:
     from mcp_server.hwp_engine import HwpEngine
 
     try:
+        output_path = _validate_output_path(output_path)
         result = HwpEngine.create_from_md(md_content, output_path)
         return f"문서 생성 완료: {result}"
-    except Exception as e:
+    except (ValueError, Exception) as e:
         return f"문서 생성 실패: {e}"
 
 
@@ -107,9 +148,10 @@ def open_in_hwp(file_path: str) -> str:
         return f"Error: file not found: {file_path}"
 
     try:
-        result = HwpEngine.open_visible(file_path)
+        validated_path = _validate_document_path(file_path)
+        result = HwpEngine.open_visible(validated_path)
         return f"한글에서 열림: {result}"
-    except Exception as e:
+    except (ValueError, Exception) as e:
         return f"열기 실패: {e}"
 
 
@@ -128,9 +170,10 @@ def read_hwpx(hwpx_path: str) -> str:
         return f"Error: file not found: {hwpx_path}"
 
     try:
-        text = HwpEngine.read_document(hwpx_path)
+        validated_path = _validate_document_path(hwpx_path)
+        text = HwpEngine.read_document(validated_path)
         return text if text.strip() else "(빈 문서)"
-    except Exception as e:
+    except (ValueError, Exception) as e:
         return f"읽기 실패: {e}"
 
 
