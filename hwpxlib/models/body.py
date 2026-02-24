@@ -52,6 +52,16 @@ class Table:
 
 
 @dataclass
+class Image:
+    """Inline image (hp:pic)."""
+    binary_item_id: str = ""  # e.g. "image1" — matches opf:item id
+    width: int = 15000        # in HWPUNIT
+    height: int = 7500        # in HWPUNIT
+    data: bytes = field(default=b'', repr=False)  # raw image bytes
+    media_type: str = "image/png"  # MIME type
+
+
+@dataclass
 class Section:
     """Section root containing paragraphs and tables."""
     elements: list = field(default_factory=list)  # list of Paragraph or Table-wrapping Paragraph

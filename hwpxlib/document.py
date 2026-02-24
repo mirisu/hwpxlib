@@ -10,7 +10,7 @@ from .constants import (
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
-from .models.body import Paragraph, Run, Table, TableRow, TableCell
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image
 from .template import (
     default_font_faces, default_border_fills,
     default_char_prs, default_para_prs, default_styles,
@@ -22,6 +22,8 @@ from .xml_writer import (
     write_header_xml, write_section_xml,
     set_id_seed, reset_id_seed,
 )
+import os
+import struct
 from .package import HwpxPackage
 
 
@@ -34,6 +36,36 @@ _HEADING_MAP = {
     5: (CHARPR_H5, PARAPR_H5, 5),
     6: (CHARPR_H6, PARAPR_H6, 6),
 }
+
+
+def _detect_image_size(data: bytes) -> tuple:
+    """Detect image dimensions from raw bytes. Returns (width, height) in pixels."""
+    # PNG
+    if data[:8] == b'\x89PNG\r\n\x1a\n' and len(data) >= 24:
+        w, h = struct.unpack('>II', data[16:24])
+        return (w, h)
+    # JPEG
+    if data[:2] == b'\xff\xd8':
+        i = 2
+        while i < len(data) - 1:
+            if data[i] != 0xFF:
+                break
+            marker = data[i + 1]
+            if marker in (0xC0, 0xC1, 0xC2):
+                h, w = struct.unpack('>HH', data[i + 5:i + 9])
+                return (w, h)
+            length = struct.unpack('>H', data[i + 2:i + 4])[0]
+            i += 2 + length
+    # GIF
+    if data[:4] == b'GIF8' and len(data) >= 10:
+        w, h = struct.unpack('<HH', data[6:10])
+        return (w, h)
+    # BMP
+    if data[:2] == b'BM' and len(data) >= 26:
+        w, h = struct.unpack('<ii', data[18:26])
+        return (abs(w), abs(h))
+    # Fallback
+    return (200, 200)
 
 
 class HwpxDocument:
@@ -53,6 +85,8 @@ class HwpxDocument:
         self._para_prs = default_para_prs()
         self._styles = default_styles()
         self._elements = []  # list of tuples for write_section_xml
+        self._images = []   # list of Image objects for BinData packaging
+        self._image_counter = 0
         self._seed = seed
 
     @classmethod
@@ -293,6 +327,73 @@ class HwpxDocument:
         self._elements.append(("paragraph", para))
         return para
 
+    def add_image(self, image_path: str = "", image_data: bytes = None,
+                  width: int = None, height: int = None) -> Image:
+        """Add an image.
+
+        Args:
+            image_path: Path to image file (png, jpg, etc.)
+            image_data: Raw image bytes (alternative to image_path)
+            width: Image width in HWPUNIT (default: auto from pixel size)
+            height: Image height in HWPUNIT (default: auto from pixel size)
+
+        Returns:
+            Image object that was added.
+        """
+        if image_data is None:
+            if not image_path:
+                raise ValueError("image_path or image_data is required")
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+
+        # Determine media type
+        if image_path:
+            ext = os.path.splitext(image_path)[1].lower()
+        else:
+            # Detect from magic bytes
+            if image_data[:8] == b'\x89PNG\r\n\x1a\n':
+                ext = '.png'
+            elif image_data[:2] == b'\xff\xd8':
+                ext = '.jpg'
+            elif image_data[:4] == b'GIF8':
+                ext = '.gif'
+            elif image_data[:2] == b'BM':
+                ext = '.bmp'
+            else:
+                ext = '.png'
+
+        mime_map = {
+            '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif', '.bmp': 'image/bmp', '.tif': 'image/tiff',
+            '.tiff': 'image/tiff',
+        }
+        media_type = mime_map.get(ext, 'image/png')
+
+        # Auto-detect dimensions from image data if not specified
+        if width is None or height is None:
+            pw, ph = _detect_image_size(image_data)
+            # Convert pixels to HWPUNIT (75 HWPUNIT per pixel is reasonable)
+            if width is None:
+                width = pw * 75
+            if height is None:
+                height = ph * 75
+
+        self._image_counter += 1
+        item_id = f"image{self._image_counter}"
+        filename = f"{item_id}{ext}"
+
+        image = Image(
+            binary_item_id=item_id,
+            width=width,
+            height=height,
+            data=image_data,
+            media_type=media_type,
+        )
+        image._filename = filename  # used by packaging
+        self._images.append(image)
+        self._elements.append(("image", image, PARAPR_BODY, 0))
+        return image
+
     def _build_header_xml(self) -> str:
         """Build the header.xml content."""
         return write_header_xml(
@@ -334,24 +435,37 @@ class HwpxDocument:
                                     texts.append(r.text)
         return ' '.join(texts)[:200]
 
-    def save(self, path: str) -> None:
-        """Save the document as a HWPX file."""
-        if self._seed is not None:
-            set_id_seed(self._seed)
-        pkg = HwpxPackage()
+    def _build_package(self) -> 'HwpxPackage':
+        """Build the complete HWPX package with all files."""
+        # Build image manifest entries
+        image_entries = []
+        for img in self._images:
+            image_entries.append((img.binary_item_id, img._filename, img.media_type))
 
-        # Add all required files
+        pkg = HwpxPackage()
         pkg.add_file('mimetype', write_mimetype())
         pkg.add_file('version.xml', write_version_xml())
         pkg.add_file('settings.xml', write_settings_xml())
         pkg.add_file('META-INF/container.xml', write_container_xml())
         pkg.add_file('META-INF/manifest.xml', write_manifest_xml())
         pkg.add_file('META-INF/container.rdf', write_container_rdf())
-        pkg.add_file('Contents/content.hpf', write_content_hpf())
+        pkg.add_file('Contents/content.hpf',
+                      write_content_hpf(images=image_entries or None))
         pkg.add_file('Contents/header.xml', self._build_header_xml())
         pkg.add_file('Contents/section0.xml', self._build_section_xml())
         pkg.add_file('Preview/PrvText.txt', write_prv_text(self._get_preview_text()))
 
+        # Add image binary data
+        for img in self._images:
+            pkg.add_file(f'BinData/{img._filename}', img.data)
+
+        return pkg
+
+    def save(self, path: str) -> None:
+        """Save the document as a HWPX file."""
+        if self._seed is not None:
+            set_id_seed(self._seed)
+        pkg = self._build_package()
         pkg.save(path)
         if self._seed is not None:
             reset_id_seed()
@@ -360,17 +474,7 @@ class HwpxDocument:
         """Return the document as bytes (for MCP server responses)."""
         if self._seed is not None:
             set_id_seed(self._seed)
-        pkg = HwpxPackage()
-        pkg.add_file('mimetype', write_mimetype())
-        pkg.add_file('version.xml', write_version_xml())
-        pkg.add_file('settings.xml', write_settings_xml())
-        pkg.add_file('META-INF/container.xml', write_container_xml())
-        pkg.add_file('META-INF/manifest.xml', write_manifest_xml())
-        pkg.add_file('META-INF/container.rdf', write_container_rdf())
-        pkg.add_file('Contents/content.hpf', write_content_hpf())
-        pkg.add_file('Contents/header.xml', self._build_header_xml())
-        pkg.add_file('Contents/section0.xml', self._build_section_xml())
-        pkg.add_file('Preview/PrvText.txt', write_prv_text(self._get_preview_text()))
+        pkg = self._build_package()
         result = pkg.to_bytes()
         if self._seed is not None:
             reset_id_seed()

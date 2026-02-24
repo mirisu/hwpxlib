@@ -14,7 +14,7 @@ from .constants import (
     MARGIN_HEADER, MARGIN_FOOTER,
 )
 from .models.head import CharPr, ParaPr, Style, BorderFill, Font, FontFace
-from .models.body import Paragraph, Run, Table, TableRow, TableCell
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image
 
 
 def _esc(text: str) -> str:
@@ -116,33 +116,48 @@ def write_container_rdf() -> str:
     )
 
 
-def write_content_hpf() -> str:
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>\n'
+def write_content_hpf(images: list = None) -> str:
+    """Generate the content.hpf (OPF manifest).
+
+    Args:
+        images: Optional list of (item_id, filename, media_type) tuples for embedded images.
+    """
+    lines = [
+        '<?xml version="1.0" encoding="utf-8"?>',
         '<opf:package xmlns:opf="http://www.idpf.org/2007/opf/"'
-        ' version="" unique-identifier="" id="">\n'
-        '  <opf:metadata>\n'
-        '    <opf:title></opf:title>\n'
-        '    <opf:language>ko</opf:language>\n'
-        '    <opf:meta name="creator" content="text"></opf:meta>\n'
-        '    <opf:meta name="subject" content="text"/>\n'
-        '    <opf:meta name="description" content="text"/>\n'
-        '    <opf:meta name="keyword" content="text"/>\n'
-        '  </opf:metadata>\n'
-        '  <opf:manifest>\n'
+        ' version="" unique-identifier="" id="">',
+        '  <opf:metadata>',
+        '    <opf:title></opf:title>',
+        '    <opf:language>ko</opf:language>',
+        '    <opf:meta name="creator" content="text"></opf:meta>',
+        '    <opf:meta name="subject" content="text"/>',
+        '    <opf:meta name="description" content="text"/>',
+        '    <opf:meta name="keyword" content="text"/>',
+        '  </opf:metadata>',
+        '  <opf:manifest>',
         '    <opf:item id="header" href="Contents/header.xml"'
-        ' media-type="application/xml"/>\n'
+        ' media-type="application/xml"/>',
+    ]
+    if images:
+        for item_id, filename, media_type in images:
+            lines.append(
+                f'    <opf:item id="{_esc_attr(item_id)}"'
+                f' href="BinData/{_esc_attr(filename)}"'
+                f' media-type="{_esc_attr(media_type)}" isEmbeded="1"/>'
+            )
+    lines.extend([
         '    <opf:item id="section0" href="Contents/section0.xml"'
-        ' media-type="application/xml"/>\n'
+        ' media-type="application/xml"/>',
         '    <opf:item id="settings" href="settings.xml"'
-        ' media-type="application/xml"/>\n'
-        '  </opf:manifest>\n'
-        '  <opf:spine>\n'
-        '    <opf:itemref idref="header" linear="yes"/>\n'
-        '    <opf:itemref idref="section0" linear="yes"/>\n'
-        '  </opf:spine>\n'
-        '</opf:package>\n'
-    )
+        ' media-type="application/xml"/>',
+        '  </opf:manifest>',
+        '  <opf:spine>',
+        '    <opf:itemref idref="header" linear="yes"/>',
+        '    <opf:itemref idref="section0" linear="yes"/>',
+        '  </opf:spine>',
+        '</opf:package>',
+    ])
+    return '\n'.join(lines)
 
 
 def write_prv_text(text: str = "") -> str:
@@ -620,12 +635,68 @@ def write_table_paragraph(table: Table, para_pr_id_ref: int = 0,
     return ''.join(parts)
 
 
+def write_image_paragraph(image: Image, para_pr_id_ref: int = 0,
+                          style_id_ref: int = 0) -> str:
+    """Write an image wrapped in a paragraph."""
+    pic_id = _unique_id()
+    w = image.width
+    h = image.height
+    cx = w // 2
+    cy = h // 2
+
+    parts = [
+        f'<hp:p paraPrIDRef="{para_pr_id_ref}"'
+        f' styleIDRef="{style_id_ref}"'
+        ' pageBreak="0" columnBreak="0" merged="0">',
+        '<hp:run charPrIDRef="0">',
+        f'<hp:pic id="{pic_id}" zOrder="0" numberingType="PICTURE"'
+        ' textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES"'
+        ' lock="0" dropcapstyle="None"'
+        f' href="" groupLevel="0" instid="{_unique_id()}" reverse="0">',
+        '<hp:offset x="0" y="0"/>',
+        f'<hp:orgSz width="{w}" height="{h}"/>',
+        '<hp:curSz width="0" height="0"/>',
+        '<hp:flip horizontal="0" vertical="0"/>',
+        f'<hp:rotationInfo angle="0" centerX="{cx}" centerY="{cy}" rotateimage="1"/>',
+        '<hp:renderingInfo>'
+        '<hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/>'
+        '<hc:scaMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/>'
+        '<hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/>'
+        '</hp:renderingInfo>',
+        '<hp:imgRect>'
+        f'<hc:pt0 x="0" y="0"/>'
+        f'<hc:pt1 x="{w}" y="0"/>'
+        f'<hc:pt2 x="{w}" y="{h}"/>'
+        f'<hc:pt3 x="0" y="{h}"/>'
+        '</hp:imgRect>',
+        f'<hp:imgClip left="0" right="{w}" top="0" bottom="{h}"/>',
+        '<hp:inMargin left="0" right="0" top="0" bottom="0"/>',
+        f'<hp:imgDim dimwidth="{w}" dimheight="{h}"/>',
+        f'<hc:img binaryItemIDRef="{_esc_attr(image.binary_item_id)}"'
+        ' bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>',
+        '<hp:effects/>',
+        f'<hp:sz width="{w}" widthRelTo="ABSOLUTE"'
+        f' height="{h}" heightRelTo="ABSOLUTE" protect="0"/>',
+        '<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1"'
+        ' allowOverlap="0" holdAnchorAndSO="0" vertRelTo="PARA"'
+        ' horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT"'
+        ' vertOffset="0" horzOffset="0"/>',
+        '<hp:outMargin left="0" right="0" top="0" bottom="0"/>',
+        '</hp:pic>',
+        '<hp:t/>',
+        '</hp:run>',
+        '</hp:p>',
+    ]
+    return ''.join(parts)
+
+
 def write_section_xml(elements: list, first_para_idx: int = 0) -> str:
     """Generate the complete section0.xml content.
 
     elements: list of tuples:
         ("paragraph", Paragraph)
         ("table", Table, para_pr_id_ref, style_id_ref)
+        ("image", Image, para_pr_id_ref, style_id_ref)
     """
     lines = [
         '<?xml version="1.0" encoding="utf-8"?>',
@@ -649,6 +720,16 @@ def write_section_xml(elements: list, first_para_idx: int = 0) -> str:
                 lines.append(write_table_paragraph(tbl, ppr, sidr))
             else:
                 lines.append(write_table_paragraph(tbl, ppr, sidr))
+        elif elem[0] == "image":
+            img = elem[1]
+            ppr = elem[2] if len(elem) > 2 else 0
+            sidr = elem[3] if len(elem) > 3 else 0
+            if is_first:
+                empty_para = Paragraph(runs=[], para_pr_id_ref=0, style_id_ref=0)
+                lines.append(write_paragraph(empty_para, is_first=True))
+                lines.append(write_image_paragraph(img, ppr, sidr))
+            else:
+                lines.append(write_image_paragraph(img, ppr, sidr))
 
     lines.append('</hs:sec>')
     return '\n'.join(lines)
