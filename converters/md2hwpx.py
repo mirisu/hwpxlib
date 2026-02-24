@@ -70,20 +70,20 @@ def convert_md_to_hwpx(md_text: str) -> HwpxDocument:
 
         elif isinstance(node, BulletList):
             items = []
-            for item_segments in node.items:
-                if _has_formatting(item_segments):
-                    items.append(_segments_to_format_list(item_segments))
+            for segments, level in node.items:
+                if _has_formatting(segments):
+                    items.append((_segments_to_format_list(segments), level))
                 else:
-                    items.append(_segments_to_plain(item_segments))
+                    items.append((_segments_to_plain(segments), level))
             doc.add_bullet_list(items)
 
         elif isinstance(node, OrderedList):
             items = []
-            for item_segments in node.items:
-                if _has_formatting(item_segments):
-                    items.append(_segments_to_format_list(item_segments))
+            for segments, level in node.items:
+                if _has_formatting(segments):
+                    items.append((_segments_to_format_list(segments), level))
                 else:
-                    items.append(_segments_to_plain(item_segments))
+                    items.append((_segments_to_plain(segments), level))
             doc.add_ordered_list(items)
 
         elif isinstance(node, HorizontalRule):

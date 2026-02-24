@@ -19,6 +19,8 @@ from .constants import (
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6, PARAPR_CODE, PARAPR_BULLET,
     PARAPR_TABLE, PARAPR_ORDERED,
+    PARAPR_BULLET_L2, PARAPR_BULLET_L3,
+    PARAPR_ORDERED_L2, PARAPR_ORDERED_L3,
     BORDERFILL_NONE, BORDERFILL_DEFAULT, BORDERFILL_TABLE,
     BORDERFILL_TABLE_HEADER, BORDERFILL_CODE_BLOCK, BORDERFILL_CODE_INLINE,
 )
@@ -203,6 +205,30 @@ def default_para_prs() -> list:
         ParaPr(id=PARAPR_ORDERED, heading_type="NUMBER", heading_id_ref=1,
                heading_level=0,
                margin_intent=800, margin_left=800,
+               margin_next=200,
+               line_spacing_value=160),
+        # 11: 불릿 레벨2
+        ParaPr(id=PARAPR_BULLET_L2, heading_type="BULLET", heading_id_ref=1,
+               heading_level=1,
+               margin_intent=800, margin_left=1600,
+               margin_next=200,
+               line_spacing_value=160),
+        # 12: 불릿 레벨3
+        ParaPr(id=PARAPR_BULLET_L3, heading_type="BULLET", heading_id_ref=1,
+               heading_level=2,
+               margin_intent=800, margin_left=2400,
+               margin_next=200,
+               line_spacing_value=160),
+        # 13: 번호매기기 레벨2
+        ParaPr(id=PARAPR_ORDERED_L2, heading_type="NUMBER", heading_id_ref=1,
+               heading_level=1,
+               margin_intent=800, margin_left=1600,
+               margin_next=200,
+               line_spacing_value=160),
+        # 14: 번호매기기 레벨3
+        ParaPr(id=PARAPR_ORDERED_L3, heading_type="NUMBER", heading_id_ref=1,
+               heading_level=2,
+               margin_intent=800, margin_left=2400,
                margin_next=200,
                line_spacing_value=160),
     ]

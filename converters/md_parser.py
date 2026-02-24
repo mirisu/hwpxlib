@@ -51,13 +51,13 @@ class CodeBlock:
 @dataclass
 class BulletList:
     """Bullet list."""
-    items: list = field(default_factory=list)  # list of list of TextSegment
+    items: list = field(default_factory=list)  # list of (segments, level) tuples
 
 
 @dataclass
 class OrderedList:
     """Ordered (numbered) list."""
-    items: list = field(default_factory=list)  # list of list of TextSegment
+    items: list = field(default_factory=list)  # list of (segments, level) tuples
 
 
 @dataclass
@@ -116,10 +116,10 @@ RE_HEADING = re.compile(r'^(#{1,6})\s+(.+?)(?:\s+#+)?$')
 RE_HR = re.compile(r'^(?:---+|\*\*\*+|___+)\s*$')
 RE_FENCE_START = re.compile(r'^```(\w*)\s*$')
 RE_FENCE_END = re.compile(r'^```\s*$')
-RE_BULLET = re.compile(r'^[-*+]\s+(.+)$')
+RE_BULLET = re.compile(r'^(\s*)[-*+]\s+(.+)$')
 RE_TABLE_ROW = re.compile(r'^\|(.+)\|\s*$')
 RE_TABLE_SEP = re.compile(r'^\|[\s:]*[-]+[\s:]*')
-RE_ORDERED = re.compile(r'^\d+[.)]\s+(.+)$')
+RE_ORDERED = re.compile(r'^(\s*)\d+[.)]\s+(.+)$')
 RE_BLOCKQUOTE = re.compile(r'^>\s*(.*)')
 
 
@@ -202,9 +202,13 @@ def parse_markdown(text: str) -> list:
             while i < len(lines):
                 bm = RE_BULLET.match(lines[i])
                 if bm:
-                    item_text = bm.group(1)
-                    items.append(parse_inline(item_text))
+                    indent = len(bm.group(1))
+                    level = min(indent // 2, 2)
+                    item_text = bm.group(2)
+                    items.append((parse_inline(item_text), level))
                     i += 1
+                elif lines[i].strip() == '':
+                    break
                 else:
                     break
             ast.append(BulletList(items=items))
@@ -217,9 +221,13 @@ def parse_markdown(text: str) -> list:
             while i < len(lines):
                 om = RE_ORDERED.match(lines[i])
                 if om:
-                    item_text = om.group(1)
-                    items.append(parse_inline(item_text))
+                    indent = len(om.group(1))
+                    level = min(indent // 2, 2)
+                    item_text = om.group(2)
+                    items.append((parse_inline(item_text), level))
                     i += 1
+                elif lines[i].strip() == '':
+                    break
                 else:
                     break
             ast.append(OrderedList(items=items))
