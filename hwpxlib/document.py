@@ -13,6 +13,7 @@ from .constants import (
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
 from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup
+from .style_config import StyleConfig
 from .template import (
     default_font_faces, default_border_fills,
     default_char_prs, default_para_prs, default_styles,
@@ -129,6 +130,29 @@ class HwpxDocument:
             self._page_setup = page_setup
         else:
             self._page_setup = PageSetup(**kwargs)
+        return self
+
+    def set_style(self, config: StyleConfig = None, **kwargs) -> "HwpxDocument":
+        """Customize fonts, sizes, colors, and line spacing.
+
+        Args:
+            config: A StyleConfig object. If None, creates one from kwargs.
+            **kwargs: Passed to StyleConfig constructor if config is None.
+                Supported: font_body, font_code, font_size_body,
+                font_size_h1..h6, font_size_code, font_size_table,
+                color_body, color_heading, color_code_text, color_code_bg,
+                color_code_block_text, color_code_block_bg,
+                color_table_header_text, color_table_header_bg,
+                line_spacing, line_spacing_code, line_spacing_table.
+
+        Returns:
+            self (for chaining).
+        """
+        cfg = config if config is not None else StyleConfig(**kwargs)
+        self._font_faces = default_font_faces(cfg)
+        self._border_fills = default_border_fills(cfg)
+        self._char_prs = default_char_prs(cfg)
+        self._para_prs = default_para_prs(cfg)
         return self
 
     def add_heading(self, text: str, level: int = 1) -> Paragraph:
