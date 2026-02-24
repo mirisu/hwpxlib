@@ -8,3 +8,10 @@ build/
 *.hwpx
 *.hwp
 .claude/
+
+# Ralph Playbook infra (local only)
+AGENTS.md
+PROMPT_plan.md
+PROMPT_build.md
+IMPLEMENTATION_PLAN.md
+loop.sh
