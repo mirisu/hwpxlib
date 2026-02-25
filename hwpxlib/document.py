@@ -3,7 +3,7 @@ from .constants import (
     CHARPR_BODY, CHARPR_BOLD, CHARPR_ITALIC, CHARPR_BOLD_ITALIC,
     CHARPR_H1, CHARPR_H2, CHARPR_H3, CHARPR_H4, CHARPR_H5, CHARPR_H6,
     CHARPR_INLINE_CODE, CHARPR_CODE_BLOCK,
-    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY,
+    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6,
     PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE, PARAPR_ORDERED,
@@ -210,10 +210,12 @@ class HwpxDocument:
                 - bold: bool (optional)
                 - italic: bool (optional)
                 - code: bool (optional, for inline code)
+                - link: str (optional, URL for hyperlink)
         """
         run_objects = []
         for seg in segments:
             text = seg.get("text", "")
+            link = seg.get("link", "")
             if seg.get("code"):
                 cpr = CHARPR_INLINE_CODE
             elif seg.get("bold") and seg.get("italic"):
@@ -224,7 +226,7 @@ class HwpxDocument:
                 cpr = CHARPR_ITALIC
             else:
                 cpr = CHARPR_BODY
-            run_objects.append(Run(text=text, char_pr_id_ref=cpr))
+            run_objects.append(Run(text=text, char_pr_id_ref=cpr, link_url=link))
 
         para = Paragraph(
             runs=run_objects,

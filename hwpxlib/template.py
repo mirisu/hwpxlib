@@ -7,7 +7,7 @@ from .constants import (
     CHARPR_BODY, CHARPR_BOLD, CHARPR_ITALIC, CHARPR_BOLD_ITALIC,
     CHARPR_H1, CHARPR_H2, CHARPR_H3, CHARPR_H4, CHARPR_H5, CHARPR_H6,
     CHARPR_INLINE_CODE, CHARPR_CODE_BLOCK,
-    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY,
+    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6, PARAPR_CODE, PARAPR_BULLET,
     PARAPR_TABLE, PARAPR_ORDERED,
@@ -142,6 +142,11 @@ def default_char_prs(config: StyleConfig = None) -> list:
         # 13: 표 본문
         CharPr(id=CHARPR_TABLE_BODY, height=cfg.font_size_table,
                text_color=cfg.color_body, font_ref=font_default,
+               border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 14: 하이퍼링크
+        CharPr(id=CHARPR_LINK, height=cfg.font_size_body,
+               text_color="#0000FF", font_ref=font_default,
+               underline_type="BOTTOM", underline_color="#0000FF",
                border_fill_id_ref=BORDERFILL_DEFAULT),
     ]
 

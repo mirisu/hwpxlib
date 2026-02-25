@@ -524,6 +524,43 @@ def _write_run(run: Run) -> str:
     )
 
 
+def _write_link_runs(run: Run) -> str:
+    """Write a hyperlink as fieldBegin/fieldEnd runs.
+
+    Generates 3 runs: fieldBegin, link text, fieldEnd.
+    """
+    field_id = _unique_id()
+    field_id2 = _unique_id()
+    url = _esc_attr(run.link_url)
+    from .constants import CHARPR_LINK
+
+    parts = [
+        # Run 1: fieldBegin
+        f'<hp:run charPrIDRef="{run.char_pr_id_ref}">',
+        '<hp:ctrl>',
+        f'<hp:fieldBegin id="{field_id}" type="HYPERLINK" name=""'
+        f' editable="0" dirty="1" zorder="-1" fieldid="{field_id2}">',
+        '<hp:parameters cnt="2" name="">',
+        '<hp:integerParam name="Prop">0</hp:integerParam>',
+        f'<hp:stringParam name="Command">{_esc(url)}</hp:stringParam>',
+        '</hp:parameters>',
+        '</hp:fieldBegin>',
+        '</hp:ctrl>',
+        '</hp:run>',
+        # Run 2: link display text
+        f'<hp:run charPrIDRef="{CHARPR_LINK}">',
+        f'<hp:t>{_esc(run.text)}</hp:t>',
+        '</hp:run>',
+        # Run 3: fieldEnd
+        f'<hp:run charPrIDRef="{run.char_pr_id_ref}">',
+        '<hp:ctrl>',
+        f'<hp:fieldEnd beginIDRef="{field_id}" fieldid="{field_id2}"/>',
+        '</hp:ctrl>',
+        '</hp:run>',
+    ]
+    return ''.join(parts)
+
+
 def write_paragraph(para: Paragraph, is_first: bool = False,
                     page_setup: PageSetup = None) -> str:
     """Write a paragraph element."""
@@ -534,6 +571,23 @@ def write_paragraph(para: Paragraph, is_first: bool = False,
     ]
 
     for i, run in enumerate(para.runs):
+        # Hyperlink runs use fieldBegin/fieldEnd pattern
+        if run.link_url:
+            if is_first and i == 0:
+                # Emit secPr in a separate run before the link
+                run_start = '<hp:run charPrIDRef="0">'
+                inner = write_sec_pr(page_setup)
+                inner += (
+                    '\n      <hp:ctrl xmlns:hp="'
+                    + NS_HP + '">\n'
+                    '        <hp:colPr id="" type="NEWSPAPER" layout="LEFT"'
+                    ' colCount="1" sameSz="1" sameGap="0" />\n'
+                    '      </hp:ctrl>\n    '
+                )
+                parts.append(run_start + inner + '</hp:run>')
+            parts.append(_write_link_runs(run))
+            continue
+
         run_start = f'<hp:run charPrIDRef="{run.char_pr_id_ref}">'
         inner = ""
         # First paragraph, first run gets secPr and colPr

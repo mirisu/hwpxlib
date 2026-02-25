@@ -18,6 +18,7 @@ class TextSegment:
     bold: bool = False
     italic: bool = False
     code: bool = False
+    link: str = ""  # URL if this is a hyperlink
 
 
 @dataclass
@@ -85,26 +86,29 @@ def parse_inline(text: str) -> list:
     Handles: ***bold italic***, **bold**, *italic*, `code`
     """
     segments = []
-    # Pattern: code > bold_italic > bold > italic
+    # Pattern: link > code > bold_italic > bold > italic > plain
     pattern = re.compile(
-        r'`([^`]+)`'                       # inline code
+        r'\[([^\]]+)\]\(([^)]+)\)'         # [text](url)
+        r'|`([^`]+)`'                       # inline code
         r'|\*\*\*(.+?)\*\*\*'             # bold+italic
         r'|\*\*(.+?)\*\*'                 # bold
         r'|\*(.+?)\*'                      # italic
-        r'|([^`*]+)'                        # plain text
+        r'|([^`*\[]+)'                     # plain text
     )
 
     for m in pattern.finditer(text):
         if m.group(1) is not None:
-            segments.append(TextSegment(text=m.group(1), code=True))
-        elif m.group(2) is not None:
-            segments.append(TextSegment(text=m.group(2), bold=True, italic=True))
+            segments.append(TextSegment(text=m.group(1), link=m.group(2)))
         elif m.group(3) is not None:
-            segments.append(TextSegment(text=m.group(3), bold=True))
+            segments.append(TextSegment(text=m.group(3), code=True))
         elif m.group(4) is not None:
-            segments.append(TextSegment(text=m.group(4), italic=True))
+            segments.append(TextSegment(text=m.group(4), bold=True, italic=True))
         elif m.group(5) is not None:
-            segments.append(TextSegment(text=m.group(5)))
+            segments.append(TextSegment(text=m.group(5), bold=True))
+        elif m.group(6) is not None:
+            segments.append(TextSegment(text=m.group(6), italic=True))
+        elif m.group(7) is not None:
+            segments.append(TextSegment(text=m.group(7)))
 
     return segments if segments else [TextSegment(text=text)]
 

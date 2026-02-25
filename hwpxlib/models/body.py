@@ -15,6 +15,7 @@ class Run:
     """Text run within a paragraph."""
     text: str = ""
     char_pr_id_ref: int = 0
+    link_url: str = ""  # URL for hyperlinks
 
 
 @dataclass

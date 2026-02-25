@@ -70,7 +70,9 @@ class TestCharProperties:
     def test_charpr_count(self, ref_header_tree, generated_header_tree):
         ref_cp = ref_header_tree.findall(".//hh:charPr", NS)
         gen_cp = generated_header_tree.findall(".//hh:charPr", NS)
-        assert len(gen_cp) == len(ref_cp) == 14
+        # Generated has more charPrs than reference (hyperlink style added)
+        assert len(gen_cp) >= len(ref_cp)
+        assert len(gen_cp) == 15
 
     def test_charpr_attributes_match(self, ref_header_tree, generated_header_tree):
         ref_cps = ref_header_tree.findall(".//hh:charPr", NS)
