@@ -16,3 +16,17 @@ PROMPT_plan.md
 PROMPT_build.md
 IMPLEMENTATION_PLAN.md
 loop.sh
+
+# Temporary scratch scripts
+_*.py
+test_create_*.py
+test_convert_*.py
+test_hf_*.py
+analyze_*.py
+build_hwpx_*.py
+check_existing_*.py
+convert_hwp_*.py
+create_hf_*.py
+extract_*.py
+verify_*.py
+test_hyperlink_final_extracted/
