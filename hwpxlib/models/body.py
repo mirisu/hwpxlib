@@ -16,6 +16,8 @@ class Run:
     text: str = ""
     char_pr_id_ref: int = 0
     link_url: str = ""  # URL for hyperlinks
+    footnote: object = None  # Footnote object (if this run has a footnote)
+    endnote: object = None   # Endnote object (if this run has an endnote)
 
 
 @dataclass
@@ -118,6 +120,20 @@ class HeaderFooter:
     """Header or footer content."""
     paragraphs: list = field(default_factory=list)  # list of Paragraph
     apply_page_type: str = "BOTH"  # BOTH, EVEN, ODD
+
+
+@dataclass
+class Footnote:
+    """Footnote content attached to a run."""
+    paragraphs: list = field(default_factory=list)  # list of Paragraph
+    number: int = 0  # auto-numbered if 0
+
+
+@dataclass
+class Endnote:
+    """Endnote content attached to a run."""
+    paragraphs: list = field(default_factory=list)  # list of Paragraph
+    number: int = 0
 
 
 @dataclass

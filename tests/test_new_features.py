@@ -673,3 +673,51 @@ class TestSuperSubscript:
         offset = cp17.find("hh:offset", ns)
         assert offset is not None
         assert offset.get("hangul") == "-50"
+
+
+class TestFootnoteEndnote:
+    def test_footnote_creates_paragraph(self):
+        doc = HwpxDocument.new(seed=42)
+        para = doc.add_footnote("See note", "This is the footnote text")
+        assert para.runs[0].text == "See note"
+        assert para.runs[0].footnote is not None
+        assert para.runs[0].footnote.number == 1
+
+    def test_footnote_numbering(self):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_footnote("First", "Note 1")
+        doc.add_footnote("Second", "Note 2")
+        fn1 = doc._elements[-2][1].runs[0].footnote
+        fn2 = doc._elements[-1][1].runs[0].footnote
+        assert fn1.number == 1
+        assert fn2.number == 2
+
+    def test_footnote_in_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_footnote("anchor", "footnote content")
+        out = tmp_path / "fn.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "hp:footNote" in section
+        assert "footnote content" in section
+        assert "anchor" in section
+        assert "hp:subList" in section
+
+    def test_endnote_creates_paragraph(self):
+        doc = HwpxDocument.new(seed=42)
+        para = doc.add_endnote("See endnote", "Endnote text")
+        assert para.runs[0].endnote is not None
+        assert para.runs[0].endnote.number == 1
+
+    def test_endnote_in_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_endnote("anchor", "endnote content")
+        out = tmp_path / "en.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "hp:endNote" in section
+        assert "endnote content" in section

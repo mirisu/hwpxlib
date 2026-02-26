@@ -516,12 +516,58 @@ def write_sec_pr(page_setup: PageSetup = None) -> str:
     )
 
 
+def _write_footnote_ctrl(fn) -> str:
+    """Write a footnote ctrl element."""
+    fn_id = _unique_id()
+    sub_id = _unique_id()
+    parts = [
+        '<hp:ctrl>',
+        f'<hp:footNote id="{fn_id}" number="{fn.number}">',
+        f'<hp:subList id="{sub_id}" textDirection="HORIZONTAL"'
+        ' lineWrap="BREAK" vertAlign="TOP" linkListIDRef="0"'
+        ' linkListNextIDRef="0" textWidth="0" textHeight="0"'
+        ' hasTextRef="0" hasNumRef="0">',
+    ]
+    for p in fn.paragraphs:
+        parts.append(write_paragraph(p, is_first=False))
+    parts.append('</hp:subList>')
+    parts.append('</hp:footNote>')
+    parts.append('</hp:ctrl>')
+    return ''.join(parts)
+
+
+def _write_endnote_ctrl(en) -> str:
+    """Write an endnote ctrl element."""
+    en_id = _unique_id()
+    sub_id = _unique_id()
+    parts = [
+        '<hp:ctrl>',
+        f'<hp:endNote id="{en_id}" number="{en.number}">',
+        f'<hp:subList id="{sub_id}" textDirection="HORIZONTAL"'
+        ' lineWrap="BREAK" vertAlign="TOP" linkListIDRef="0"'
+        ' linkListNextIDRef="0" textWidth="0" textHeight="0"'
+        ' hasTextRef="0" hasNumRef="0">',
+    ]
+    for p in en.paragraphs:
+        parts.append(write_paragraph(p, is_first=False))
+    parts.append('</hp:subList>')
+    parts.append('</hp:endNote>')
+    parts.append('</hp:ctrl>')
+    return ''.join(parts)
+
+
 def _write_run(run: Run) -> str:
     """Write a single run element."""
-    return (
-        f'<hp:run charPrIDRef="{run.char_pr_id_ref}">'
-        f'<hp:t>{_esc(run.text)}</hp:t></hp:run>'
-    )
+    parts = [
+        f'<hp:run charPrIDRef="{run.char_pr_id_ref}">',
+        f'<hp:t>{_esc(run.text)}</hp:t>',
+    ]
+    if run.footnote is not None:
+        parts.append(_write_footnote_ctrl(run.footnote))
+    if run.endnote is not None:
+        parts.append(_write_endnote_ctrl(run.endnote))
+    parts.append('</hp:run>')
+    return ''.join(parts)
 
 
 def _write_link_runs(run: Run) -> str:
@@ -636,6 +682,10 @@ def write_paragraph(para: Paragraph, is_first: bool = False,
         if is_first and i == 0:
             inner += _first_run_inner()
         inner += f'<hp:t>{_esc(run.text)}</hp:t>'
+        if run.footnote is not None:
+            inner += _write_footnote_ctrl(run.footnote)
+        if run.endnote is not None:
+            inner += _write_endnote_ctrl(run.endnote)
         parts.append(run_start + inner + '</hp:run>')
 
     # Empty paragraph (no runs) - still valid

@@ -14,7 +14,7 @@ from .constants import (
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
-from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup, HeaderFooter
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup, HeaderFooter, Footnote, Endnote
 from .style_config import StyleConfig
 from .template import (
     default_font_faces, default_border_fills,
@@ -474,6 +474,60 @@ class HwpxDocument:
             para_pr_id_ref=PARAPR_BLOCKQUOTE,
             style_id_ref=0,
         )
+        self._elements.append(("paragraph", para))
+        return para
+
+    def add_footnote(self, anchor_text: str, note_text: str) -> Paragraph:
+        """Add text with a footnote.
+
+        Creates a paragraph where anchor_text has a footnote attached.
+        The footnote content (note_text) appears at the bottom of the page.
+
+        Args:
+            anchor_text: Text in the main body that the footnote is attached to.
+            note_text: The footnote content.
+
+        Returns:
+            The main body paragraph containing the anchor.
+        """
+        self._footnote_counter = getattr(self, '_footnote_counter', 0) + 1
+        note_run = Run(text=note_text, char_pr_id_ref=CHARPR_BODY)
+        note_para = Paragraph(runs=[note_run], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
+        fn = Footnote(paragraphs=[note_para], number=self._footnote_counter)
+
+        anchor_run = Run(
+            text=anchor_text,
+            char_pr_id_ref=CHARPR_BODY,
+            footnote=fn,
+        )
+        para = Paragraph(runs=[anchor_run], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
+        self._elements.append(("paragraph", para))
+        return para
+
+    def add_endnote(self, anchor_text: str, note_text: str) -> Paragraph:
+        """Add text with an endnote.
+
+        Creates a paragraph where anchor_text has an endnote attached.
+        The endnote content (note_text) appears at the end of the document.
+
+        Args:
+            anchor_text: Text in the main body that the endnote is attached to.
+            note_text: The endnote content.
+
+        Returns:
+            The main body paragraph containing the anchor.
+        """
+        self._endnote_counter = getattr(self, '_endnote_counter', 0) + 1
+        note_run = Run(text=note_text, char_pr_id_ref=CHARPR_BODY)
+        note_para = Paragraph(runs=[note_run], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
+        en = Endnote(paragraphs=[note_para], number=self._endnote_counter)
+
+        anchor_run = Run(
+            text=anchor_text,
+            char_pr_id_ref=CHARPR_BODY,
+            endnote=en,
+        )
+        para = Paragraph(runs=[anchor_run], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
         self._elements.append(("paragraph", para))
         return para
 
