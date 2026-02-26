@@ -595,3 +595,35 @@ class TestStrikethrough:
                         found = True
                         break
         assert found, "Expected strikethrough charPr in output"
+
+
+class TestPageBreak:
+    def test_page_break_paragraph(self):
+        doc = HwpxDocument.new(seed=42)
+        para = doc.add_page_break()
+        assert para.page_break is True
+
+    def test_page_break_in_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_paragraph("Page 1 content")
+        doc.add_page_break()
+        doc.add_paragraph("Page 2 content")
+        out = tmp_path / "pb.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert 'pageBreak="1"' in section
+        assert "Page 1 content" in section
+        assert "Page 2 content" in section
+
+    def test_normal_paragraph_no_page_break(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_paragraph("Normal text")
+        out = tmp_path / "no_pb.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        # All normal paragraphs should have pageBreak="0"
+        assert 'pageBreak="1"' not in section

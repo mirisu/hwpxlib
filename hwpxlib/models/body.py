@@ -26,6 +26,7 @@ class Paragraph:
     style_id_ref: int = 0
     # If this is the first paragraph, it may contain secPr
     has_sec_pr: bool = False
+    page_break: bool = False  # force page break before this paragraph
 
 
 @dataclass

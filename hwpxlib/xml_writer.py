@@ -599,10 +599,11 @@ def write_paragraph(para: Paragraph, is_first: bool = False,
         header: Optional header content (only used when is_first=True).
         footer: Optional footer content (only used when is_first=True).
     """
+    pb = "1" if para.page_break else "0"
     parts = [
         f'<hp:p paraPrIDRef="{para.para_pr_id_ref}"'
         f' styleIDRef="{para.style_id_ref}"'
-        f' pageBreak="0" columnBreak="0" merged="0">'
+        f' pageBreak="{pb}" columnBreak="0" merged="0">'
     ]
 
     # Helper: build the secPr + colPr + header/footer block for first run

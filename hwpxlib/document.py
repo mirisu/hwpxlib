@@ -472,6 +472,18 @@ class HwpxDocument:
         self._elements.append(("paragraph", para))
         return para
 
+    def add_page_break(self) -> Paragraph:
+        """Add a page break. The next content starts on a new page."""
+        run = Run(text="", char_pr_id_ref=CHARPR_BODY)
+        para = Paragraph(
+            runs=[run],
+            para_pr_id_ref=PARAPR_BODY,
+            style_id_ref=0,
+            page_break=True,
+        )
+        self._elements.append(("paragraph", para))
+        return para
+
     def add_horizontal_rule(self) -> Paragraph:
         """Add a horizontal rule (visible bottom border line)."""
         run = Run(text="", char_pr_id_ref=CHARPR_BODY)
