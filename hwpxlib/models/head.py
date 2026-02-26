@@ -29,6 +29,7 @@ class CharPr:
     underline_type: str = "NONE"
     underline_color: str = "#000000"
     strikeout: str = "NONE"
+    offset: int = 0  # vertical offset for superscript (>0) / subscript (<0), in %
 
 
 @dataclass

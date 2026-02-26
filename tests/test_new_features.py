@@ -627,3 +627,49 @@ class TestPageBreak:
             section = zf.read("Contents/section0.xml").decode("utf-8")
         # All normal paragraphs should have pageBreak="0"
         assert 'pageBreak="1"' not in section
+
+
+class TestSuperSubscript:
+    def test_superscript_charpr(self):
+        doc = HwpxDocument.new(seed=42)
+        segs = [{"text": "H"}, {"text": "2", "superscript": True}, {"text": "O"}]
+        para = doc.add_mixed_paragraph(segs)
+        assert para.runs[1].char_pr_id_ref == 16  # CHARPR_SUPERSCRIPT
+
+    def test_subscript_charpr(self):
+        doc = HwpxDocument.new(seed=42)
+        segs = [{"text": "H"}, {"text": "2", "subscript": True}, {"text": "O"}]
+        para = doc.add_mixed_paragraph(segs)
+        assert para.runs[1].char_pr_id_ref == 17  # CHARPR_SUBSCRIPT
+
+    def test_superscript_offset_in_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_mixed_paragraph([{"text": "x", "superscript": True}])
+        out = tmp_path / "sup.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            header = zf.read("Contents/header.xml").decode("utf-8")
+        root = ET.fromstring(header)
+        ns = {"hh": "http://www.hancom.co.kr/hwpml/2011/head"}
+        cps = root.findall(".//hh:charPr", ns)
+        cp16 = [cp for cp in cps if cp.get("id") == "16"][0]
+        offset = cp16.find("hh:offset", ns)
+        assert offset is not None
+        assert offset.get("hangul") == "50"
+
+    def test_subscript_offset_in_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_mixed_paragraph([{"text": "x", "subscript": True}])
+        out = tmp_path / "sub.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            header = zf.read("Contents/header.xml").decode("utf-8")
+        root = ET.fromstring(header)
+        ns = {"hh": "http://www.hancom.co.kr/hwpml/2011/head"}
+        cps = root.findall(".//hh:charPr", ns)
+        cp17 = [cp for cp in cps if cp.get("id") == "17"][0]
+        offset = cp17.find("hh:offset", ns)
+        assert offset is not None
+        assert offset.get("hangul") == "-50"

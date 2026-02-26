@@ -74,7 +74,7 @@ class TestCharProperties:
         gen_cp = generated_header_tree.findall(".//hh:charPr", NS)
         # Generated has more charPrs than reference (hyperlink style added)
         assert len(gen_cp) >= len(ref_cp)
-        assert len(gen_cp) == 16
+        assert len(gen_cp) == 18
 
     def test_charpr_attributes_match(self, ref_header_tree, generated_header_tree):
         ref_cps = ref_header_tree.findall(".//hh:charPr", NS)

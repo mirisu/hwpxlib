@@ -7,7 +7,8 @@ from .constants import (
     CHARPR_BODY, CHARPR_BOLD, CHARPR_ITALIC, CHARPR_BOLD_ITALIC,
     CHARPR_H1, CHARPR_H2, CHARPR_H3, CHARPR_H4, CHARPR_H5, CHARPR_H6,
     CHARPR_INLINE_CODE, CHARPR_CODE_BLOCK,
-    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK, CHARPR_STRIKETHROUGH,
+    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK,
+    CHARPR_STRIKETHROUGH, CHARPR_SUPERSCRIPT, CHARPR_SUBSCRIPT,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6, PARAPR_CODE, PARAPR_BULLET,
     PARAPR_TABLE, PARAPR_ORDERED,
@@ -169,6 +170,16 @@ def default_char_prs(config: StyleConfig = None) -> list:
         CharPr(id=CHARPR_STRIKETHROUGH, height=cfg.font_size_body,
                text_color=cfg.color_body, font_ref=font_default,
                strikeout="SOLID",
+               border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 16: 위첨자
+        CharPr(id=CHARPR_SUPERSCRIPT, height=700,
+               text_color=cfg.color_body, font_ref=font_default,
+               offset=50,
+               border_fill_id_ref=BORDERFILL_DEFAULT),
+        # 17: 아래첨자
+        CharPr(id=CHARPR_SUBSCRIPT, height=700,
+               text_color=cfg.color_body, font_ref=font_default,
+               offset=-50,
                border_fill_id_ref=BORDERFILL_DEFAULT),
     ]
 

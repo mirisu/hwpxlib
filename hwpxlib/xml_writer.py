@@ -233,8 +233,8 @@ def _write_char_pr(cp: CharPr) -> str:
         ' japanese="0" other="0" symbol="0" user="0" />',
         '        <hh:relSz hangul="100" latin="100" hanja="100"'
         ' japanese="100" other="100" symbol="100" user="100" />',
-        '        <hh:offset hangul="0" latin="0" hanja="0"'
-        ' japanese="0" other="0" symbol="0" user="0" />',
+        f'        <hh:offset hangul="{cp.offset}" latin="{cp.offset}" hanja="{cp.offset}"'
+        f' japanese="{cp.offset}" other="{cp.offset}" symbol="{cp.offset}" user="{cp.offset}" />',
     ]
     if cp.bold:
         lines.append('        <hh:bold />')

@@ -3,7 +3,8 @@ from .constants import (
     CHARPR_BODY, CHARPR_BOLD, CHARPR_ITALIC, CHARPR_BOLD_ITALIC,
     CHARPR_H1, CHARPR_H2, CHARPR_H3, CHARPR_H4, CHARPR_H5, CHARPR_H6,
     CHARPR_INLINE_CODE, CHARPR_CODE_BLOCK,
-    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK, CHARPR_STRIKETHROUGH,
+    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK,
+    CHARPR_STRIKETHROUGH, CHARPR_SUPERSCRIPT, CHARPR_SUBSCRIPT,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6,
     PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE, PARAPR_ORDERED,
@@ -247,6 +248,10 @@ class HwpxDocument:
             return CHARPR_INLINE_CODE
         if seg.get("strikethrough"):
             return CHARPR_STRIKETHROUGH
+        if seg.get("superscript"):
+            return CHARPR_SUPERSCRIPT
+        if seg.get("subscript"):
+            return CHARPR_SUBSCRIPT
         if seg.get("bold") and seg.get("italic"):
             return CHARPR_BOLD_ITALIC
         if seg.get("bold"):
