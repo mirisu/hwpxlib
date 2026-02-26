@@ -14,7 +14,7 @@ from .constants import (
     MARGIN_HEADER, MARGIN_FOOTER,
 )
 from .models.head import CharPr, ParaPr, Style, BorderFill, Font, FontFace
-from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup, HeaderFooter
 
 
 def _esc(text: str) -> str:
@@ -561,45 +561,79 @@ def _write_link_runs(run: Run) -> str:
     return ''.join(parts)
 
 
+def _write_header_footer(tag: str, hf: HeaderFooter) -> str:
+    """Write a header or footer ctrl element.
+
+    Args:
+        tag: "hp:header" or "hp:footer"
+        hf: HeaderFooter object with paragraphs and applyPageType
+    """
+    hf_id = _unique_id()
+    sub_id = _unique_id()
+    parts = [
+        f'<hp:ctrl>',
+        f'<{tag} id="{hf_id}" applyPageType="{_esc_attr(hf.apply_page_type)}">',
+        f'<hp:subList id="{sub_id}" textDirection="HORIZONTAL"'
+        f' lineWrap="BREAK" vertAlign="TOP" linkListIDRef="0"'
+        f' linkListNextIDRef="0" textWidth="0" textHeight="0"'
+        f' hasTextRef="0" hasNumRef="0">',
+    ]
+    for p in hf.paragraphs:
+        parts.append(write_paragraph(p, is_first=False))
+    parts.append('</hp:subList>')
+    parts.append(f'</{tag}>')
+    parts.append('</hp:ctrl>')
+    return ''.join(parts)
+
+
 def write_paragraph(para: Paragraph, is_first: bool = False,
-                    page_setup: PageSetup = None) -> str:
-    """Write a paragraph element."""
+                    page_setup: PageSetup = None,
+                    header: HeaderFooter = None,
+                    footer: HeaderFooter = None) -> str:
+    """Write a paragraph element.
+
+    Args:
+        para: Paragraph to write.
+        is_first: If True, includes secPr, colPr, and optionally header/footer.
+        page_setup: Page setup for secPr (only used when is_first=True).
+        header: Optional header content (only used when is_first=True).
+        footer: Optional footer content (only used when is_first=True).
+    """
     parts = [
         f'<hp:p paraPrIDRef="{para.para_pr_id_ref}"'
         f' styleIDRef="{para.style_id_ref}"'
         f' pageBreak="0" columnBreak="0" merged="0">'
     ]
 
+    # Helper: build the secPr + colPr + header/footer block for first run
+    def _first_run_inner():
+        inner = write_sec_pr(page_setup)
+        inner += (
+            '\n      <hp:ctrl xmlns:hp="'
+            + NS_HP + '">\n'
+            '        <hp:colPr id="" type="NEWSPAPER" layout="LEFT"'
+            ' colCount="1" sameSz="1" sameGap="0" />\n'
+            '      </hp:ctrl>\n    '
+        )
+        if header:
+            inner += _write_header_footer("hp:header", header)
+        if footer:
+            inner += _write_header_footer("hp:footer", footer)
+        return inner
+
     for i, run in enumerate(para.runs):
         # Hyperlink runs use fieldBegin/fieldEnd pattern
         if run.link_url:
             if is_first and i == 0:
-                # Emit secPr in a separate run before the link
                 run_start = '<hp:run charPrIDRef="0">'
-                inner = write_sec_pr(page_setup)
-                inner += (
-                    '\n      <hp:ctrl xmlns:hp="'
-                    + NS_HP + '">\n'
-                    '        <hp:colPr id="" type="NEWSPAPER" layout="LEFT"'
-                    ' colCount="1" sameSz="1" sameGap="0" />\n'
-                    '      </hp:ctrl>\n    '
-                )
-                parts.append(run_start + inner + '</hp:run>')
+                parts.append(run_start + _first_run_inner() + '</hp:run>')
             parts.append(_write_link_runs(run))
             continue
 
         run_start = f'<hp:run charPrIDRef="{run.char_pr_id_ref}">'
         inner = ""
-        # First paragraph, first run gets secPr and colPr
         if is_first and i == 0:
-            inner += write_sec_pr(page_setup)
-            inner += (
-                '\n      <hp:ctrl xmlns:hp="'
-                + NS_HP + '">\n'
-                '        <hp:colPr id="" type="NEWSPAPER" layout="LEFT"'
-                ' colCount="1" sameSz="1" sameGap="0" />\n'
-                '      </hp:ctrl>\n    '
-            )
+            inner += _first_run_inner()
         inner += f'<hp:t>{_esc(run.text)}</hp:t>'
         parts.append(run_start + inner + '</hp:run>')
 
@@ -607,15 +641,7 @@ def write_paragraph(para: Paragraph, is_first: bool = False,
     if not para.runs:
         if is_first:
             run_start = '<hp:run charPrIDRef="0">'
-            inner = write_sec_pr(page_setup)
-            inner += (
-                '\n      <hp:ctrl xmlns:hp="'
-                + NS_HP + '">\n'
-                '        <hp:colPr id="" type="NEWSPAPER" layout="LEFT"'
-                ' colCount="1" sameSz="1" sameGap="0" />\n'
-                '      </hp:ctrl>\n    '
-            )
-            parts.append(run_start + inner + '</hp:run>')
+            parts.append(run_start + _first_run_inner() + '</hp:run>')
 
     parts.append('</hp:p>')
     return ''.join(parts)
@@ -747,13 +773,17 @@ def write_image_paragraph(image: Image, para_pr_id_ref: int = 0,
 
 
 def write_section_xml(elements: list, first_para_idx: int = 0,
-                      page_setup: PageSetup = None) -> str:
+                      page_setup: PageSetup = None,
+                      header: HeaderFooter = None,
+                      footer: HeaderFooter = None) -> str:
     """Generate the complete section0.xml content.
 
     elements: list of tuples:
         ("paragraph", Paragraph)
         ("table", Table, para_pr_id_ref, style_id_ref)
         ("image", Image, para_pr_id_ref, style_id_ref)
+    header: Optional HeaderFooter for page header.
+    footer: Optional HeaderFooter for page footer.
     """
     lines = [
         '<?xml version="1.0" encoding="utf-8"?>',
@@ -764,16 +794,21 @@ def write_section_xml(elements: list, first_para_idx: int = 0,
     for i, elem in enumerate(elements):
         is_first = (i == first_para_idx)
         if elem[0] == "paragraph":
-            lines.append(write_paragraph(elem[1], is_first=is_first,
-                                         page_setup=page_setup))
+            lines.append(write_paragraph(
+                elem[1], is_first=is_first, page_setup=page_setup,
+                header=header if is_first else None,
+                footer=footer if is_first else None,
+            ))
         elif elem[0] == "table":
             tbl = elem[1]
             ppr = elem[2] if len(elem) > 2 else 0
             sidr = elem[3] if len(elem) > 3 else 0
             if is_first:
                 empty_para = Paragraph(runs=[], para_pr_id_ref=0, style_id_ref=0)
-                lines.append(write_paragraph(empty_para, is_first=True,
-                                             page_setup=page_setup))
+                lines.append(write_paragraph(
+                    empty_para, is_first=True, page_setup=page_setup,
+                    header=header, footer=footer,
+                ))
                 lines.append(write_table_paragraph(tbl, ppr, sidr))
             else:
                 lines.append(write_table_paragraph(tbl, ppr, sidr))
@@ -783,8 +818,10 @@ def write_section_xml(elements: list, first_para_idx: int = 0,
             sidr = elem[3] if len(elem) > 3 else 0
             if is_first:
                 empty_para = Paragraph(runs=[], para_pr_id_ref=0, style_id_ref=0)
-                lines.append(write_paragraph(empty_para, is_first=True,
-                                             page_setup=page_setup))
+                lines.append(write_paragraph(
+                    empty_para, is_first=True, page_setup=page_setup,
+                    header=header, footer=footer,
+                ))
                 lines.append(write_image_paragraph(img, ppr, sidr))
             else:
                 lines.append(write_image_paragraph(img, ppr, sidr))

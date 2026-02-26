@@ -13,7 +13,7 @@ from .constants import (
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
-from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup
+from .models.body import Paragraph, Run, Table, TableRow, TableCell, Image, PageSetup, HeaderFooter
 from .style_config import StyleConfig
 from .template import (
     default_font_faces, default_border_fills,
@@ -93,6 +93,8 @@ class HwpxDocument:
         self._image_counter = 0
         self._seed = seed
         self._page_setup = PageSetup()
+        self._header = None  # HeaderFooter or None
+        self._footer = None  # HeaderFooter or None
 
     @classmethod
     def new(cls, seed: int = None) -> "HwpxDocument":
@@ -131,6 +133,42 @@ class HwpxDocument:
             self._page_setup = page_setup
         else:
             self._page_setup = PageSetup(**kwargs)
+        return self
+
+    def set_header(self, text: str, apply_page_type: str = "BOTH") -> "HwpxDocument":
+        """Set page header text.
+
+        Args:
+            text: Header text content.
+            apply_page_type: "BOTH" (all pages), "EVEN", or "ODD".
+
+        Returns:
+            self (for chaining).
+        """
+        run = Run(text=text, char_pr_id_ref=CHARPR_BODY)
+        para = Paragraph(runs=[run], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
+        self._header = HeaderFooter(
+            paragraphs=[para],
+            apply_page_type=apply_page_type,
+        )
+        return self
+
+    def set_footer(self, text: str, apply_page_type: str = "BOTH") -> "HwpxDocument":
+        """Set page footer text.
+
+        Args:
+            text: Footer text content.
+            apply_page_type: "BOTH" (all pages), "EVEN", or "ODD".
+
+        Returns:
+            self (for chaining).
+        """
+        run = Run(text=text, char_pr_id_ref=CHARPR_BODY)
+        para = Paragraph(runs=[run], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
+        self._footer = HeaderFooter(
+            paragraphs=[para],
+            apply_page_type=apply_page_type,
+        )
         return self
 
     def set_style(self, config: StyleConfig = None, **kwargs) -> "HwpxDocument":
@@ -515,7 +553,9 @@ class HwpxDocument:
             )
             self._elements.append(("paragraph", para))
         return write_section_xml(self._elements, first_para_idx=0,
-                                page_setup=self._page_setup)
+                                page_setup=self._page_setup,
+                                header=self._header,
+                                footer=self._footer)
 
     def _get_preview_text(self) -> str:
         """Extract plain text for preview."""

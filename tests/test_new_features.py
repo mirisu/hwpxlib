@@ -336,3 +336,92 @@ class TestMdConversionNewFeatures:
         assert f'paraPrIDRef="{PARAPR_BULLET}"' in section
         assert f'paraPrIDRef="{PARAPR_BULLET_L2}"' in section
         assert f'paraPrIDRef="{PARAPR_BULLET_L3}"' in section
+
+
+# === Header/Footer Support ===
+
+class TestHeaderFooter:
+
+    def test_set_header_text(self):
+        doc = HwpxDocument.new()
+        result = doc.set_header("Test Header")
+        assert result is doc  # chaining
+        assert doc._header is not None
+        assert doc._header.paragraphs[0].runs[0].text == "Test Header"
+        assert doc._header.apply_page_type == "BOTH"
+
+    def test_set_footer_text(self):
+        doc = HwpxDocument.new()
+        doc.set_footer("Page Footer", apply_page_type="ODD")
+        assert doc._footer is not None
+        assert doc._footer.paragraphs[0].runs[0].text == "Page Footer"
+        assert doc._footer.apply_page_type == "ODD"
+
+    def test_header_in_section_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.set_header("Report Header")
+        doc.add_paragraph("Body text")
+        out = tmp_path / "header.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "hp:header" in section
+        assert "Report Header" in section
+        assert 'applyPageType="BOTH"' in section
+
+    def test_footer_in_section_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.set_footer("Page Footer")
+        doc.add_paragraph("Body text")
+        out = tmp_path / "footer.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "hp:footer" in section
+        assert "Page Footer" in section
+
+    def test_both_header_and_footer(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.set_header("Header")
+        doc.set_footer("Footer")
+        doc.add_paragraph("Body")
+        out = tmp_path / "both.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "hp:header" in section
+        assert "hp:footer" in section
+        assert "Header" in section
+        assert "Footer" in section
+
+    def test_header_has_sublist_structure(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.set_header("Test")
+        doc.add_paragraph("Body")
+        out = tmp_path / "hf_struct.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        tree = ET.fromstring(section)
+        ns = {"hp": "http://www.hancom.co.kr/hwpml/2011/paragraph"}
+        headers = tree.findall(".//hp:header", ns)
+        assert len(headers) == 1
+        sublists = headers[0].findall("hp:subList", ns)
+        assert len(sublists) == 1
+        paras = sublists[0].findall("hp:p", ns)
+        assert len(paras) >= 1
+
+    def test_no_header_footer_by_default(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_paragraph("Body only")
+        out = tmp_path / "no_hf.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "hp:header" not in section
+        assert "hp:footer" not in section

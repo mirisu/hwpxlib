@@ -113,6 +113,13 @@ class PageSetup:
 
 
 @dataclass
+class HeaderFooter:
+    """Header or footer content."""
+    paragraphs: list = field(default_factory=list)  # list of Paragraph
+    apply_page_type: str = "BOTH"  # BOTH, EVEN, ODD
+
+
+@dataclass
 class Section:
     """Section root containing paragraphs and tables."""
     elements: list = field(default_factory=list)  # list of Paragraph or Table-wrapping Paragraph
