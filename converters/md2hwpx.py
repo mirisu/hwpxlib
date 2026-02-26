@@ -91,16 +91,12 @@ def convert_md_to_hwpx(md_text: str) -> HwpxDocument:
             doc.add_horizontal_rule()
 
         elif isinstance(node, BlockQuote):
-            # Render blockquotes as italic paragraphs with indent
             if _has_formatting(node.segments):
                 fmt = _segments_to_format_list(node.segments)
-                # Add quote marker
-                fmt.insert(0, {"text": "\u201C ", "italic": True})
-                fmt.append({"text": " \u201D", "italic": True})
-                doc.add_mixed_paragraph(fmt)
+                doc.add_blockquote(segments=fmt)
             else:
                 text = _segments_to_plain(node.segments)
-                doc.add_paragraph(f"\u201C{text}\u201D", italic=True)
+                doc.add_blockquote(text=text)
 
     return doc
 

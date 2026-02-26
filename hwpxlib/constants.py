@@ -127,6 +127,7 @@ PARAPR_BULLET_L3 = 12
 PARAPR_ORDERED_L2 = 13
 PARAPR_ORDERED_L3 = 14
 PARAPR_HR = 15
+PARAPR_BLOCKQUOTE = 16
 
 # === Style ID Map ===
 STYLE_BODY = 0
@@ -145,3 +146,4 @@ BORDERFILL_TABLE_HEADER = 4 # Solid border + blue background
 BORDERFILL_CODE_BLOCK = 5   # No border + code block background
 BORDERFILL_CODE_INLINE = 6  # No border + inline code background
 BORDERFILL_HR = 7           # Bottom border only (horizontal rule)
+BORDERFILL_BLOCKQUOTE = 8   # Left border only (blockquote vertical bar)

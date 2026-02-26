@@ -9,7 +9,7 @@ from .constants import (
     PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE, PARAPR_ORDERED,
     PARAPR_BULLET_L2, PARAPR_BULLET_L3,
     PARAPR_ORDERED_L2, PARAPR_ORDERED_L3,
-    PARAPR_HR,
+    PARAPR_HR, PARAPR_BLOCKQUOTE,
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
@@ -453,6 +453,40 @@ class HwpxDocument:
             self._elements.append(("paragraph", para))
             paragraphs.append(para)
         return paragraphs
+
+    def add_blockquote(self, text: str = "", segments: list = None) -> Paragraph:
+        """Add a blockquote paragraph with left blue border.
+
+        Args:
+            text: Simple text content. Ignored if segments is provided.
+            segments: List of dicts for mixed formatting (same as add_mixed_paragraph).
+        """
+        if segments:
+            run_objects = []
+            for seg in segments:
+                txt = seg.get("text", "")
+                link = seg.get("link", "")
+                if seg.get("code"):
+                    cpr = CHARPR_INLINE_CODE
+                elif seg.get("bold") and seg.get("italic"):
+                    cpr = CHARPR_BOLD_ITALIC
+                elif seg.get("bold"):
+                    cpr = CHARPR_BOLD
+                elif seg.get("italic"):
+                    cpr = CHARPR_ITALIC
+                else:
+                    cpr = CHARPR_BODY
+                run_objects.append(Run(text=txt, char_pr_id_ref=cpr, link_url=link))
+        else:
+            run_objects = [Run(text=text, char_pr_id_ref=CHARPR_BODY)]
+
+        para = Paragraph(
+            runs=run_objects,
+            para_pr_id_ref=PARAPR_BLOCKQUOTE,
+            style_id_ref=0,
+        )
+        self._elements.append(("paragraph", para))
+        return para
 
     def add_horizontal_rule(self) -> Paragraph:
         """Add a horizontal rule (visible bottom border line)."""

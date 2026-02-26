@@ -13,10 +13,10 @@ from .constants import (
     PARAPR_TABLE, PARAPR_ORDERED,
     PARAPR_BULLET_L2, PARAPR_BULLET_L3,
     PARAPR_ORDERED_L2, PARAPR_ORDERED_L3,
-    PARAPR_HR,
+    PARAPR_HR, PARAPR_BLOCKQUOTE,
     BORDERFILL_NONE, BORDERFILL_DEFAULT, BORDERFILL_TABLE,
     BORDERFILL_TABLE_HEADER, BORDERFILL_CODE_BLOCK, BORDERFILL_CODE_INLINE,
-    BORDERFILL_HR,
+    BORDERFILL_HR, BORDERFILL_BLOCKQUOTE,
 )
 from .style_config import StyleConfig
 from .models.head import CharPr, ParaPr, Style, BorderFill, Font, FontFace, FontRef
@@ -84,6 +84,13 @@ def default_border_fills(config: StyleConfig = None) -> list:
             left_type="NONE", right_type="NONE",
             top_type="NONE", bottom_type="SOLID",
             bottom_width="0.4 mm", bottom_color="#BFBFBF",
+            fill_color="none",
+        ),
+        # id=8: Blockquote (left border only, blue vertical bar)
+        BorderFill(
+            id=BORDERFILL_BLOCKQUOTE,
+            left_type="SOLID", left_width="0.4 mm", left_color="#4472C4",
+            right_type="NONE", top_type="NONE", bottom_type="NONE",
             fill_color="none",
         ),
     ]
@@ -252,6 +259,12 @@ def default_para_prs(config: StyleConfig = None) -> list:
                margin_prev=400, margin_next=400,
                line_spacing_value=100,
                border_fill_id_ref=BORDERFILL_HR),
+        # 16: 인용문
+        ParaPr(id=PARAPR_BLOCKQUOTE,
+               margin_left=600, margin_right=0,
+               margin_prev=200, margin_next=200,
+               line_spacing_value=160,
+               border_fill_id_ref=BORDERFILL_BLOCKQUOTE),
     ]
 
 

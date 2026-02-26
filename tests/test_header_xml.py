@@ -49,12 +49,12 @@ class TestBorderFills:
         gen_bf = generated_header_tree.findall(".//hh:borderFill", NS)
         # Generated has more borderFills than reference (HR border added)
         assert len(gen_bf) >= len(ref_bf)
-        assert len(gen_bf) == 7
+        assert len(gen_bf) == 8
 
     def test_borderfill_ids_are_1_based(self, generated_header_tree):
         bfs = generated_header_tree.findall(".//hh:borderFill", NS)
         ids = [int(bf.get("id")) for bf in bfs]
-        assert ids == list(range(1, 8))
+        assert ids == list(range(1, 9))
 
     def test_borderfill_attributes_match(self, ref_header_tree, generated_header_tree):
         ref_bfs = ref_header_tree.findall(".//hh:borderFill", NS)
@@ -119,7 +119,7 @@ class TestParaProperties:
         gen_pp = generated_header_tree.findall(".//hh:paraPr", NS)
         # Generated has more paraPrs than reference (ordered/nested list levels + HR added)
         assert len(gen_pp) >= len(ref_pp)
-        assert len(gen_pp) == 16
+        assert len(gen_pp) == 17
 
     def test_parapr_attributes_match(self, ref_header_tree, generated_header_tree):
         ref_pps = ref_header_tree.findall(".//hh:paraPr", NS)

@@ -475,3 +475,75 @@ class TestTOC:
             section = zf.read("Contents/section0.xml").decode("utf-8")
         assert "hp:header" not in section
         assert "hp:footer" not in section
+
+
+class TestBlockQuote:
+    def test_blockquote_plain_text(self):
+        doc = HwpxDocument.new(seed=42)
+        para = doc.add_blockquote("This is a quote")
+        assert para.runs[0].text == "This is a quote"
+        assert para.para_pr_id_ref == 16  # PARAPR_BLOCKQUOTE
+
+    def test_blockquote_with_formatting(self):
+        doc = HwpxDocument.new(seed=42)
+        segments = [
+            {"text": "Bold quote", "bold": True},
+            {"text": " continues", "italic": False},
+        ]
+        para = doc.add_blockquote(segments=segments)
+        assert len(para.runs) == 2
+        assert para.runs[0].char_pr_id_ref == 1  # CHARPR_BOLD
+        assert para.para_pr_id_ref == 16  # PARAPR_BLOCKQUOTE
+
+    def test_blockquote_in_output_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_blockquote("Quoted text")
+        out = tmp_path / "bq.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "Quoted text" in section
+        # paraPrIDRef="16" in the output
+        assert 'paraPrIDRef="16"' in section
+
+    def test_blockquote_borderfill_in_header(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_blockquote("Test")
+        out = tmp_path / "bq_hdr.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            header = zf.read("Contents/header.xml").decode("utf-8")
+        # borderFill id=8 should exist with left border
+        root = ET.fromstring(header)
+        ns = {"hh": "http://www.hancom.co.kr/hwpml/2011/head"}
+        bfs = root.findall(".//hh:borderFill", ns)
+        bf_ids = [bf.get("id") for bf in bfs]
+        assert "8" in bf_ids
+
+    def test_blockquote_no_curly_quotes(self):
+        """Blockquote should NOT wrap text in curly quotes anymore."""
+        doc = HwpxDocument.new(seed=42)
+        para = doc.add_blockquote("Simple quote")
+        text = para.runs[0].text
+        assert "\u201C" not in text
+        assert "\u201D" not in text
+
+    def test_md_blockquote_conversion(self):
+        """Markdown blockquote should use add_blockquote, not italic paragraph."""
+        from converters.md_parser import parse_markdown
+        from converters.md2hwpx import convert_md_to_hwpx
+
+        md = "> This is a blockquote"
+        doc = convert_md_to_hwpx(md)
+        # Find blockquote paragraph
+        found = False
+        for elem in doc._elements:
+            if elem[0] == "paragraph":
+                para = elem[1]
+                if para.para_pr_id_ref == 16:  # PARAPR_BLOCKQUOTE
+                    found = True
+                    assert para.runs[0].text == "This is a blockquote"
+                    break
+        assert found, "Expected a blockquote paragraph with PARAPR_BLOCKQUOTE"
