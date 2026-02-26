@@ -18,6 +18,7 @@ class TextSegment:
     bold: bool = False
     italic: bool = False
     code: bool = False
+    strikethrough: bool = False
     link: str = ""  # URL if this is a hyperlink
 
 
@@ -86,14 +87,15 @@ def parse_inline(text: str) -> list:
     Handles: ***bold italic***, **bold**, *italic*, `code`
     """
     segments = []
-    # Pattern: link > code > bold_italic > bold > italic > plain
+    # Pattern: link > code > strikethrough > bold_italic > bold > italic > plain
     pattern = re.compile(
-        r'\[([^\]]+)\]\(([^)]+)\)'         # [text](url)
-        r'|`([^`]+)`'                       # inline code
-        r'|\*\*\*(.+?)\*\*\*'             # bold+italic
-        r'|\*\*(.+?)\*\*'                 # bold
-        r'|\*(.+?)\*'                      # italic
-        r'|([^`*\[]+)'                     # plain text
+        r'\[([^\]]+)\]\(([^)]+)\)'         # [text](url)  groups 1,2
+        r'|`([^`]+)`'                       # inline code  group 3
+        r'|~~(.+?)~~'                       # strikethrough group 4
+        r'|\*\*\*(.+?)\*\*\*'             # bold+italic  group 5
+        r'|\*\*(.+?)\*\*'                 # bold         group 6
+        r'|\*(.+?)\*'                      # italic       group 7
+        r'|([^`*~\[]+|[~](?!~))'          # plain text   group 8
     )
 
     for m in pattern.finditer(text):
@@ -102,13 +104,15 @@ def parse_inline(text: str) -> list:
         elif m.group(3) is not None:
             segments.append(TextSegment(text=m.group(3), code=True))
         elif m.group(4) is not None:
-            segments.append(TextSegment(text=m.group(4), bold=True, italic=True))
+            segments.append(TextSegment(text=m.group(4), strikethrough=True))
         elif m.group(5) is not None:
-            segments.append(TextSegment(text=m.group(5), bold=True))
+            segments.append(TextSegment(text=m.group(5), bold=True, italic=True))
         elif m.group(6) is not None:
-            segments.append(TextSegment(text=m.group(6), italic=True))
+            segments.append(TextSegment(text=m.group(6), bold=True))
         elif m.group(7) is not None:
-            segments.append(TextSegment(text=m.group(7)))
+            segments.append(TextSegment(text=m.group(7), italic=True))
+        elif m.group(8) is not None:
+            segments.append(TextSegment(text=m.group(8)))
 
     return segments if segments else [TextSegment(text=text)]
 

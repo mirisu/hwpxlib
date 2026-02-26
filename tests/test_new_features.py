@@ -547,3 +547,51 @@ class TestBlockQuote:
                     assert para.runs[0].text == "This is a blockquote"
                     break
         assert found, "Expected a blockquote paragraph with PARAPR_BLOCKQUOTE"
+
+
+class TestStrikethrough:
+    def test_strikethrough_in_mixed_paragraph(self):
+        doc = HwpxDocument.new(seed=42)
+        segments = [
+            {"text": "normal "},
+            {"text": "deleted", "strikethrough": True},
+            {"text": " text"},
+        ]
+        para = doc.add_mixed_paragraph(segments)
+        assert para.runs[1].char_pr_id_ref == 15  # CHARPR_STRIKETHROUGH
+
+    def test_strikethrough_in_output_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_mixed_paragraph([{"text": "strike", "strikethrough": True}])
+        out = tmp_path / "strike.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            header = zf.read("Contents/header.xml").decode("utf-8")
+        # charPr id=15 should have strikeout shape="SOLID"
+        root = ET.fromstring(header)
+        ns = {"hh": "http://www.hancom.co.kr/hwpml/2011/head"}
+        cps = root.findall(".//hh:charPr", ns)
+        cp15 = [cp for cp in cps if cp.get("id") == "15"][0]
+        strike = cp15.find("hh:strikeout", ns)
+        assert strike is not None
+        assert strike.get("shape") == "SOLID"
+
+    def test_md_strikethrough_parsing(self):
+        from converters.md_parser import parse_inline
+        segs = parse_inline("hello ~~deleted~~ world")
+        assert len(segs) == 3
+        assert segs[1].strikethrough is True
+        assert segs[1].text == "deleted"
+
+    def test_md_strikethrough_conversion(self):
+        from converters.md2hwpx import convert_md_to_hwpx
+        doc = convert_md_to_hwpx("This has ~~deleted~~ text")
+        found = False
+        for elem in doc._elements:
+            if elem[0] == "paragraph":
+                for run in elem[1].runs:
+                    if run.char_pr_id_ref == 15:
+                        found = True
+                        break
+        assert found, "Expected strikethrough charPr in output"

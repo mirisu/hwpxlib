@@ -3,7 +3,7 @@ from .constants import (
     CHARPR_BODY, CHARPR_BOLD, CHARPR_ITALIC, CHARPR_BOLD_ITALIC,
     CHARPR_H1, CHARPR_H2, CHARPR_H3, CHARPR_H4, CHARPR_H5, CHARPR_H6,
     CHARPR_INLINE_CODE, CHARPR_CODE_BLOCK,
-    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK,
+    CHARPR_TABLE_HEADER, CHARPR_TABLE_BODY, CHARPR_LINK, CHARPR_STRIKETHROUGH,
     PARAPR_BODY, PARAPR_H1, PARAPR_H2, PARAPR_H3,
     PARAPR_H4, PARAPR_H5, PARAPR_H6,
     PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE, PARAPR_ORDERED,
@@ -240,6 +240,21 @@ class HwpxDocument:
         self._elements.append(("paragraph", para))
         return para
 
+    @staticmethod
+    def _resolve_char_pr(seg: dict) -> int:
+        """Resolve segment formatting dict to charPr ID."""
+        if seg.get("code"):
+            return CHARPR_INLINE_CODE
+        if seg.get("strikethrough"):
+            return CHARPR_STRIKETHROUGH
+        if seg.get("bold") and seg.get("italic"):
+            return CHARPR_BOLD_ITALIC
+        if seg.get("bold"):
+            return CHARPR_BOLD
+        if seg.get("italic"):
+            return CHARPR_ITALIC
+        return CHARPR_BODY
+
     def add_mixed_paragraph(self, segments: list) -> Paragraph:
         """Add a paragraph with mixed formatting.
 
@@ -249,22 +264,14 @@ class HwpxDocument:
                 - bold: bool (optional)
                 - italic: bool (optional)
                 - code: bool (optional, for inline code)
+                - strikethrough: bool (optional)
                 - link: str (optional, URL for hyperlink)
         """
         run_objects = []
         for seg in segments:
             text = seg.get("text", "")
             link = seg.get("link", "")
-            if seg.get("code"):
-                cpr = CHARPR_INLINE_CODE
-            elif seg.get("bold") and seg.get("italic"):
-                cpr = CHARPR_BOLD_ITALIC
-            elif seg.get("bold"):
-                cpr = CHARPR_BOLD
-            elif seg.get("italic"):
-                cpr = CHARPR_ITALIC
-            else:
-                cpr = CHARPR_BODY
+            cpr = self._resolve_char_pr(seg)
             run_objects.append(Run(text=text, char_pr_id_ref=cpr, link_url=link))
 
         para = Paragraph(
@@ -398,14 +405,7 @@ class HwpxDocument:
                 run_objects = []
                 for seg in content:
                     text = seg.get("text", "")
-                    if seg.get("code"):
-                        cpr = CHARPR_INLINE_CODE
-                    elif seg.get("bold"):
-                        cpr = CHARPR_BOLD
-                    elif seg.get("italic"):
-                        cpr = CHARPR_ITALIC
-                    else:
-                        cpr = CHARPR_BODY
+                    cpr = self._resolve_char_pr(seg)
                     run_objects.append(Run(text=text, char_pr_id_ref=cpr))
                 para = Paragraph(runs=run_objects, para_pr_id_ref=para_pr, style_id_ref=0)
 
@@ -439,14 +439,7 @@ class HwpxDocument:
                 run_objects = []
                 for seg in content:
                     text = seg.get("text", "")
-                    if seg.get("code"):
-                        cpr = CHARPR_INLINE_CODE
-                    elif seg.get("bold"):
-                        cpr = CHARPR_BOLD
-                    elif seg.get("italic"):
-                        cpr = CHARPR_ITALIC
-                    else:
-                        cpr = CHARPR_BODY
+                    cpr = self._resolve_char_pr(seg)
                     run_objects.append(Run(text=text, char_pr_id_ref=cpr))
                 para = Paragraph(runs=run_objects, para_pr_id_ref=para_pr, style_id_ref=0)
 
@@ -466,16 +459,7 @@ class HwpxDocument:
             for seg in segments:
                 txt = seg.get("text", "")
                 link = seg.get("link", "")
-                if seg.get("code"):
-                    cpr = CHARPR_INLINE_CODE
-                elif seg.get("bold") and seg.get("italic"):
-                    cpr = CHARPR_BOLD_ITALIC
-                elif seg.get("bold"):
-                    cpr = CHARPR_BOLD
-                elif seg.get("italic"):
-                    cpr = CHARPR_ITALIC
-                else:
-                    cpr = CHARPR_BODY
+                cpr = self._resolve_char_pr(seg)
                 run_objects.append(Run(text=txt, char_pr_id_ref=cpr, link_url=link))
         else:
             run_objects = [Run(text=text, char_pr_id_ref=CHARPR_BODY)]

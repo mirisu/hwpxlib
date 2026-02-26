@@ -22,6 +22,7 @@ def _segments_to_format_list(segments: list) -> list:
             "bold": seg.bold,
             "italic": seg.italic,
             "code": seg.code,
+            "strikethrough": seg.strikethrough,
             "link": seg.link,
         }
         for seg in segments
@@ -35,7 +36,7 @@ def _segments_to_plain(segments: list) -> str:
 
 def _has_formatting(segments: list) -> bool:
     """Check if segments have any formatting beyond plain text."""
-    return any(seg.bold or seg.italic or seg.code or seg.link for seg in segments)
+    return any(seg.bold or seg.italic or seg.code or seg.strikethrough or seg.link for seg in segments)
 
 
 def convert_md_to_hwpx(md_text: str) -> HwpxDocument:
