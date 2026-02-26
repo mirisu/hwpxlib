@@ -91,36 +91,43 @@ def write_manifest_xml() -> str:
     )
 
 
-def write_container_rdf() -> str:
-    return (
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
-        '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n'
-        '  <rdf:Description rdf:about="">\n'
+def write_container_rdf(section_count: int = 1) -> str:
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
+        '  <rdf:Description rdf:about="">',
         '    <ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#"'
-        ' rdf:resource="Contents/header.xml"/>\n'
-        '  </rdf:Description>\n'
-        '  <rdf:Description rdf:about="Contents/header.xml">\n'
-        '    <rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#HeaderFile"/>\n'
-        '  </rdf:Description>\n'
-        '  <rdf:Description rdf:about="">\n'
-        '    <ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#"'
-        ' rdf:resource="Contents/section0.xml"/>\n'
-        '  </rdf:Description>\n'
-        '  <rdf:Description rdf:about="Contents/section0.xml">\n'
-        '    <rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#SectionFile"/>\n'
-        '  </rdf:Description>\n'
-        '  <rdf:Description rdf:about="">\n'
-        '    <rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#Document"/>\n'
-        '  </rdf:Description>\n'
-        '</rdf:RDF>\n'
-    )
+        ' rdf:resource="Contents/header.xml"/>',
+        '  </rdf:Description>',
+        '  <rdf:Description rdf:about="Contents/header.xml">',
+        '    <rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#HeaderFile"/>',
+        '  </rdf:Description>',
+    ]
+    for i in range(section_count):
+        parts.extend([
+            '  <rdf:Description rdf:about="">',
+            f'    <ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#"'
+            f' rdf:resource="Contents/section{i}.xml"/>',
+            '  </rdf:Description>',
+            f'  <rdf:Description rdf:about="Contents/section{i}.xml">',
+            '    <rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#SectionFile"/>',
+            '  </rdf:Description>',
+        ])
+    parts.extend([
+        '  <rdf:Description rdf:about="">',
+        '    <rdf:type rdf:resource="http://www.hancom.co.kr/hwpml/2016/meta/pkg#Document"/>',
+        '  </rdf:Description>',
+        '</rdf:RDF>',
+    ])
+    return '\n'.join(parts) + '\n'
 
 
-def write_content_hpf(images: list = None) -> str:
+def write_content_hpf(images: list = None, section_count: int = 1) -> str:
     """Generate the content.hpf (OPF manifest).
 
     Args:
         images: Optional list of (item_id, filename, media_type) tuples for embedded images.
+        section_count: Number of sections in the document.
     """
     lines = [
         '<?xml version="1.0" encoding="utf-8"?>',
@@ -145,15 +152,21 @@ def write_content_hpf(images: list = None) -> str:
                 f' href="BinData/{_esc_attr(filename)}"'
                 f' media-type="{_esc_attr(media_type)}" isEmbeded="1"/>'
             )
+    for i in range(section_count):
+        lines.append(
+            f'    <opf:item id="section{i}" href="Contents/section{i}.xml"'
+            ' media-type="application/xml"/>'
+        )
     lines.extend([
-        '    <opf:item id="section0" href="Contents/section0.xml"'
-        ' media-type="application/xml"/>',
         '    <opf:item id="settings" href="settings.xml"'
         ' media-type="application/xml"/>',
         '  </opf:manifest>',
         '  <opf:spine>',
         '    <opf:itemref idref="header" linear="yes"/>',
-        '    <opf:itemref idref="section0" linear="yes"/>',
+    ])
+    for i in range(section_count):
+        lines.append(f'    <opf:itemref idref="section{i}" linear="yes"/>')
+    lines.extend([
         '  </opf:spine>',
         '</opf:package>',
     ])

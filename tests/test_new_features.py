@@ -721,3 +721,89 @@ class TestFootnoteEndnote:
             section = zf.read("Contents/section0.xml").decode("utf-8")
         assert "hp:endNote" in section
         assert "endnote content" in section
+
+
+class TestMultiSection:
+    def test_single_section_backward_compat(self, tmp_path):
+        """Documents without add_section() still work as before."""
+        doc = HwpxDocument.new(seed=42)
+        doc.add_paragraph("Single section")
+        out = tmp_path / "single.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            names = zf.namelist()
+        assert "Contents/section0.xml" in names
+        assert "Contents/section1.xml" not in names
+
+    def test_two_sections(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_heading("Section 1", level=1)
+        doc.add_paragraph("Content of section 1")
+        doc.add_section()  # start new section
+        doc.add_heading("Section 2", level=1)
+        doc.add_paragraph("Content of section 2")
+        out = tmp_path / "multi.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            names = zf.namelist()
+            sec0 = zf.read("Contents/section0.xml").decode("utf-8")
+            sec1 = zf.read("Contents/section1.xml").decode("utf-8")
+            hpf = zf.read("Contents/content.hpf").decode("utf-8")
+            rdf = zf.read("META-INF/container.rdf").decode("utf-8")
+
+        assert "Contents/section0.xml" in names
+        assert "Contents/section1.xml" in names
+        assert "Section 1" in sec0
+        assert "Section 2" in sec1
+        assert "Section 1" not in sec1
+        assert "section0" in hpf
+        assert "section1" in hpf
+        assert "section0.xml" in rdf
+        assert "section1.xml" in rdf
+
+    def test_section_with_different_page_setup(self, tmp_path):
+        from hwpxlib.models.body import PageSetup
+        doc = HwpxDocument.new(seed=42)
+        doc.add_paragraph("Portrait content")
+        doc.add_section(page_setup=PageSetup.a4(landscape=True))
+        doc.add_paragraph("Landscape content")
+        out = tmp_path / "landscape.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            sec1 = zf.read("Contents/section1.xml").decode("utf-8")
+        assert 'landscape="NARROWLY"' in sec1
+
+    def test_section_with_header_footer(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.set_header("Header 1")
+        doc.add_paragraph("First section")
+        doc.add_section()
+        doc.set_header("Header 2")
+        doc.add_paragraph("Second section")
+        out = tmp_path / "multi_hf.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            sec0 = zf.read("Contents/section0.xml").decode("utf-8")
+            sec1 = zf.read("Contents/section1.xml").decode("utf-8")
+        assert "Header 1" in sec0
+        assert "Header 2" in sec1
+
+    def test_three_sections(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_paragraph("S1")
+        doc.add_section()
+        doc.add_paragraph("S2")
+        doc.add_section()
+        doc.add_paragraph("S3")
+        out = tmp_path / "three.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            names = zf.namelist()
+        assert "Contents/section0.xml" in names
+        assert "Contents/section1.xml" in names
+        assert "Contents/section2.xml" in names

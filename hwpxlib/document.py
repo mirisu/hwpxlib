@@ -96,6 +96,7 @@ class HwpxDocument:
         self._page_setup = PageSetup()
         self._header = None  # HeaderFooter or None
         self._footer = None  # HeaderFooter or None
+        self._sections = []  # completed sections: list of (elements, page_setup, header, footer)
 
     @classmethod
     def new(cls, seed: int = None) -> "HwpxDocument":
@@ -170,6 +171,34 @@ class HwpxDocument:
             paragraphs=[para],
             apply_page_type=apply_page_type,
         )
+        return self
+
+    def add_section(self, page_setup: PageSetup = None, **kwargs) -> "HwpxDocument":
+        """Start a new section with optional different page setup.
+
+        Finishes the current section and begins a new one. Subsequent
+        content will be added to the new section with its own page
+        properties, header, and footer.
+
+        Args:
+            page_setup: PageSetup for the new section. Defaults to A4.
+            **kwargs: Passed to PageSetup constructor if page_setup is None.
+
+        Returns:
+            self (for chaining).
+        """
+        # Save current section
+        self._sections.append((
+            self._elements,
+            self._page_setup,
+            self._header,
+            self._footer,
+        ))
+        # Start new section
+        self._elements = []
+        self._page_setup = page_setup if page_setup is not None else PageSetup(**kwargs) if kwargs else PageSetup()
+        self._header = None
+        self._footer = None
         return self
 
     def set_style(self, config: StyleConfig = None, **kwargs) -> "HwpxDocument":
@@ -678,42 +707,43 @@ class HwpxDocument:
             styles=self._styles,
         )
 
-    def _build_section_xml(self) -> str:
-        """Build the section0.xml content."""
-        if not self._elements:
-            # Empty document: add one empty paragraph
-            para = Paragraph(
-                runs=[],
-                para_pr_id_ref=PARAPR_BODY,
-                style_id_ref=0,
-            )
-            self._elements.append(("paragraph", para))
-        return write_section_xml(self._elements, first_para_idx=0,
-                                page_setup=self._page_setup,
-                                header=self._header,
-                                footer=self._footer)
+    def _get_all_sections(self) -> list:
+        """Return list of (elements, page_setup, header, footer) for all sections."""
+        all_sections = list(self._sections)
+        # Current (active) section
+        elements = self._elements
+        if not elements:
+            para = Paragraph(runs=[], para_pr_id_ref=PARAPR_BODY, style_id_ref=0)
+            elements = [("paragraph", para)]
+        all_sections.append((elements, self._page_setup, self._header, self._footer))
+        return all_sections
 
     def _get_preview_text(self) -> str:
         """Extract plain text for preview."""
         texts = []
-        for elem in self._elements:
-            if elem[0] == "paragraph":
-                para = elem[1]
-                for run in para.runs:
-                    if run.text.strip():
-                        texts.append(run.text)
-            elif elem[0] == "table":
-                tbl = elem[1]
-                for row in tbl.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:
-                            for r in p.runs:
-                                if r.text.strip():
-                                    texts.append(r.text)
+        all_sections = self._get_all_sections()
+        for elements, _, _, _ in all_sections:
+            for elem in elements:
+                if elem[0] == "paragraph":
+                    para = elem[1]
+                    for run in para.runs:
+                        if run.text.strip():
+                            texts.append(run.text)
+                elif elem[0] == "table":
+                    tbl = elem[1]
+                    for row in tbl.rows:
+                        for cell in row.cells:
+                            for p in cell.paragraphs:
+                                for r in p.runs:
+                                    if r.text.strip():
+                                        texts.append(r.text)
         return ' '.join(texts)[:200]
 
     def _build_package(self) -> 'HwpxPackage':
         """Build the complete HWPX package with all files."""
+        all_sections = self._get_all_sections()
+        section_count = len(all_sections)
+
         # Build image manifest entries
         image_entries = []
         for img in self._images:
@@ -725,11 +755,21 @@ class HwpxDocument:
         pkg.add_file('settings.xml', write_settings_xml())
         pkg.add_file('META-INF/container.xml', write_container_xml())
         pkg.add_file('META-INF/manifest.xml', write_manifest_xml())
-        pkg.add_file('META-INF/container.rdf', write_container_rdf())
+        pkg.add_file('META-INF/container.rdf',
+                      write_container_rdf(section_count=section_count))
         pkg.add_file('Contents/content.hpf',
-                      write_content_hpf(images=image_entries or None))
+                      write_content_hpf(images=image_entries or None,
+                                        section_count=section_count))
         pkg.add_file('Contents/header.xml', self._build_header_xml())
-        pkg.add_file('Contents/section0.xml', self._build_section_xml())
+
+        for i, (elements, page_setup, header, footer) in enumerate(all_sections):
+            section_xml = write_section_xml(
+                elements, first_para_idx=0,
+                page_setup=page_setup,
+                header=header, footer=footer,
+            )
+            pkg.add_file(f'Contents/section{i}.xml', section_xml)
+
         pkg.add_file('Preview/PrvText.txt', write_prv_text(self._get_preview_text()))
 
         # Add image binary data
