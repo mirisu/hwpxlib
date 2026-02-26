@@ -4,7 +4,7 @@
 The `<hh:paraProperties>` section defines paragraph formatting (margins, spacing, heading type).
 
 ## Acceptance Criteria
-1. Exactly 10 paraPr elements, id 0 through 9
+1. Exactly 16 paraPr elements, id 0 through 15
 2. Common attributes: `tabPrIDRef="1"`, `condense="0"`, `fontLineHeight="0"`, `snapToGrid="1"`, `suppressLineNumbers="0"`, `checked="0"`
 3. Each paraPr contains: align, heading, breakSetting, autoSpacing, switch (with case+default), border
 4. The hp:switch contains hp:case (required-namespace=HwpUnitChar) and hp:default with identical margin/lineSpacing content
@@ -21,6 +21,12 @@ The `<hh:paraProperties>` section defines paragraph formatting (margins, spacing
    | 7  | LEFT     | NONE/0/0    | 0     | 0            | 0/400/400/0/0                         | 130%        | 5               | Code    |
    | 8  | LEFT     | BULLET/1/0  | 0     | 0            | 800/800/0/0/200                       | 160%        | 2               | Bullet  |
    | 9  | CENTER   | NONE/0/0    | 0     | 0            | 0/0/0/0/0                             | 130%        | 2               | Table   |
+   | 10 | LEFT     | NUMBER/1/0  | 0     | 0            | 800/800/0/0/200                       | 160%        | 2               | Ordered |
+   | 11 | LEFT     | BULLET/1/1  | 1     | 0            | 800/1600/0/0/200                      | 160%        | 2               | Bullet L2 |
+   | 12 | LEFT     | BULLET/1/2  | 2     | 0            | 800/2400/0/0/200                      | 160%        | 2               | Bullet L3 |
+   | 13 | LEFT     | NUMBER/1/1  | 1     | 0            | 800/1600/0/0/200                      | 160%        | 2               | Ordered L2 |
+   | 14 | LEFT     | NUMBER/1/2  | 2     | 0            | 800/2400/0/0/200                      | 160%        | 2               | Ordered L3 |
+   | 15 | LEFT     | NONE/0/0    | 0     | 0            | 0/0/0/400/400                         | 100%        | 7               | Horiz. Rule |
 
 ## Test
 `tests/test_header_xml.py::TestParaProperties`
