@@ -415,6 +415,56 @@ class TestHeaderFooter:
         paras = sublists[0].findall("hp:p", ns)
         assert len(paras) >= 1
 
+    def test_header_footer_chaining(self):
+        doc = HwpxDocument.new()
+        result = doc.set_header("H").set_footer("F")
+        assert result is doc
+
+
+# === TOC Support ===
+
+class TestTOC:
+
+    def test_toc_generates_entries(self):
+        doc = HwpxDocument.new()
+        doc.add_heading("Chapter 1", level=1)
+        doc.add_paragraph("Some text")
+        doc.add_heading("Section 1.1", level=2)
+        doc.add_paragraph("More text")
+        doc.add_heading("Chapter 2", level=1)
+
+        entries = doc.add_toc(title="Contents")
+        # Should find 3 headings (Chapter 1, Section 1.1, Chapter 2)
+        # Note: "Contents" heading itself is not included because it's added
+        # after scanning existing headings
+        assert len(entries) == 3
+
+    def test_toc_indentation(self):
+        doc = HwpxDocument.new()
+        doc.add_heading("H1", level=1)
+        doc.add_heading("H2", level=2)
+        doc.add_heading("H3", level=3)
+        entries = doc.add_toc(title="")
+
+        texts = [e.runs[0].text for e in entries]
+        assert texts[0] == "H1"       # no indent for level 1
+        assert texts[1] == "  H2"     # 2-space indent for level 2
+        assert texts[2] == "    H3"   # 4-space indent for level 3
+
+    def test_toc_in_output_xml(self, tmp_path):
+        doc = HwpxDocument.new(seed=42)
+        doc.add_heading("Introduction", level=1)
+        doc.add_heading("Methods", level=1)
+        doc.add_toc(title="TOC")
+        out = tmp_path / "toc.hwpx"
+        doc.save(str(out))
+
+        with zipfile.ZipFile(str(out)) as zf:
+            section = zf.read("Contents/section0.xml").decode("utf-8")
+        assert "Introduction" in section
+        assert "Methods" in section
+        assert "TOC" in section
+
     def test_no_header_footer_by_default(self, tmp_path):
         doc = HwpxDocument.new(seed=42)
         doc.add_paragraph("Body only")

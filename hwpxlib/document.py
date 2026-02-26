@@ -465,6 +465,53 @@ class HwpxDocument:
         self._elements.append(("paragraph", para))
         return para
 
+    def add_toc(self, title: str = "목차") -> list:
+        """Generate a table of contents from existing headings.
+
+        Scans all headings added so far and creates TOC paragraphs.
+        Call this after adding all headings.
+
+        Args:
+            title: TOC title text. Default: "목차".
+
+        Returns:
+            List of Paragraph objects created (excludes title and separator).
+        """
+        paragraphs = []
+
+        # Collect heading entries first (before modifying self._elements)
+        entries = []
+        for elem in self._elements:
+            if elem[0] != "paragraph":
+                continue
+            para = elem[1]
+            if para.style_id_ref in (1, 2, 3, 4, 5, 6):
+                level = para.style_id_ref
+                text = ''.join(r.text for r in para.runs)
+                entries.append((text, level))
+
+        # TOC title
+        if title:
+            self.add_heading(title, level=1)
+
+        # Create TOC entry paragraphs
+        for text, level in entries:
+            indent = "  " * (level - 1)
+            toc_text = f"{indent}{text}"
+            run = Run(text=toc_text, char_pr_id_ref=CHARPR_BODY)
+            toc_para = Paragraph(
+                runs=[run],
+                para_pr_id_ref=PARAPR_BODY,
+                style_id_ref=0,
+            )
+            self._elements.append(("paragraph", toc_para))
+            paragraphs.append(toc_para)
+
+        # Separator
+        self.add_horizontal_rule()
+
+        return paragraphs
+
     def add_image(self, image_path: str = "", image_data: bytes = None,
                   width: int = None, height: int = None) -> Image:
         """Add an image.
