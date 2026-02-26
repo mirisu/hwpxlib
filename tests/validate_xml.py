@@ -22,6 +22,17 @@ def normalize_xml(xml_str: str) -> ET.Element:
     return ET.fromstring(xml_str)
 
 
+# Tags where generated may have MORE items than reference (intentional extensions)
+_EXTENSIBLE_TAGS = {
+    "borderFills", "charProperties", "paraProperties",
+}
+
+
+def _is_extensible(tag: str) -> bool:
+    """Check if this element is an extensible collection (may have extra items)."""
+    return any(tag.endswith("}" + t) for t in _EXTENSIBLE_TAGS)
+
+
 def compare_elements(ref: ET.Element, gen: ET.Element, path: str = "") -> list:
     """Recursively compare two XML elements, returning list of differences."""
     diffs = []
@@ -40,6 +51,9 @@ def compare_elements(ref: ET.Element, gen: ET.Element, path: str = "") -> list:
     skip_attrs = set()
     if ref.tag.endswith("}tbl") or ref.tag.endswith("}subList"):
         skip_attrs.add("id")
+    # Skip itemCnt for extensible collections (generated may have more)
+    if _is_extensible(ref.tag):
+        skip_attrs.add("itemCnt")
 
     for key in sorted(set(ref_attrs.keys()) | set(gen_attrs.keys())):
         if key in skip_attrs:
@@ -55,14 +69,23 @@ def compare_elements(ref: ET.Element, gen: ET.Element, path: str = "") -> list:
     if ref_text != gen_text:
         diffs.append(f"TEXT {current}: ref={ref_text!r} gen={gen_text!r}")
 
-    # Compare children count
+    # Compare children
     ref_children = list(ref)
     gen_children = list(gen)
-    if len(ref_children) != len(gen_children):
+
+    if _is_extensible(ref.tag):
+        # For extensible collections: generated must have AT LEAST as many items
+        if len(gen_children) < len(ref_children):
+            diffs.append(
+                f"CHILDREN COUNT {current}: gen={len(gen_children)} < ref={len(ref_children)}"
+            )
+        # Compare only the overlapping portion
+        for i, (rc, gc) in enumerate(zip(ref_children, gen_children)):
+            diffs.extend(compare_elements(rc, gc, f"{current}[{i}]"))
+    elif len(ref_children) != len(gen_children):
         diffs.append(
             f"CHILDREN COUNT {current}: ref={len(ref_children)} gen={len(gen_children)}"
         )
-        # Compare as many as possible
         for i, (rc, gc) in enumerate(zip(ref_children, gen_children)):
             diffs.extend(compare_elements(rc, gc, f"{current}[{i}]"))
     else:

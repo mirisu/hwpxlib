@@ -9,6 +9,7 @@ from .constants import (
     PARAPR_CODE, PARAPR_BULLET, PARAPR_TABLE, PARAPR_ORDERED,
     PARAPR_BULLET_L2, PARAPR_BULLET_L3,
     PARAPR_ORDERED_L2, PARAPR_ORDERED_L3,
+    PARAPR_HR,
     BORDERFILL_TABLE, BORDERFILL_TABLE_HEADER,
     PAGE_WIDTH, MARGIN_LEFT, MARGIN_RIGHT,
 )
@@ -416,12 +417,11 @@ class HwpxDocument:
         return paragraphs
 
     def add_horizontal_rule(self) -> Paragraph:
-        """Add a horizontal rule (thin line paragraph)."""
-        # Use an empty paragraph with a border-bottom style
+        """Add a horizontal rule (visible bottom border line)."""
         run = Run(text="", char_pr_id_ref=CHARPR_BODY)
         para = Paragraph(
             runs=[run],
-            para_pr_id_ref=PARAPR_BODY,
+            para_pr_id_ref=PARAPR_HR,
             style_id_ref=0,
         )
         self._elements.append(("paragraph", para))

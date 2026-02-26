@@ -13,8 +13,10 @@ from .constants import (
     PARAPR_TABLE, PARAPR_ORDERED,
     PARAPR_BULLET_L2, PARAPR_BULLET_L3,
     PARAPR_ORDERED_L2, PARAPR_ORDERED_L3,
+    PARAPR_HR,
     BORDERFILL_NONE, BORDERFILL_DEFAULT, BORDERFILL_TABLE,
     BORDERFILL_TABLE_HEADER, BORDERFILL_CODE_BLOCK, BORDERFILL_CODE_INLINE,
+    BORDERFILL_HR,
 )
 from .style_config import StyleConfig
 from .models.head import CharPr, ParaPr, Style, BorderFill, Font, FontFace, FontRef
@@ -75,6 +77,14 @@ def default_border_fills(config: StyleConfig = None) -> list:
             left_type="NONE", right_type="NONE",
             top_type="NONE", bottom_type="NONE",
             fill_color=cfg.color_code_bg,
+        ),
+        # id=7: Horizontal rule (bottom border only)
+        BorderFill(
+            id=BORDERFILL_HR,
+            left_type="NONE", right_type="NONE",
+            top_type="NONE", bottom_type="SOLID",
+            bottom_width="0.4 mm", bottom_color="#BFBFBF",
+            fill_color="none",
         ),
     ]
 
@@ -237,6 +247,11 @@ def default_para_prs(config: StyleConfig = None) -> list:
                margin_intent=800, margin_left=2400,
                margin_next=200,
                line_spacing_value=ls),
+        # 15: 수평선
+        ParaPr(id=PARAPR_HR,
+               margin_prev=400, margin_next=400,
+               line_spacing_value=100,
+               border_fill_id_ref=BORDERFILL_HR),
     ]
 
 
