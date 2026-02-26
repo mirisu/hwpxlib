@@ -4,7 +4,7 @@
 The `<hh:paraProperties>` section defines paragraph formatting (margins, spacing, heading type).
 
 ## Acceptance Criteria
-1. Exactly 16 paraPr elements, id 0 through 15
+1. Exactly 17 paraPr elements, id 0 through 16
 2. Common attributes: `tabPrIDRef="1"`, `condense="0"`, `fontLineHeight="0"`, `snapToGrid="1"`, `suppressLineNumbers="0"`, `checked="0"`
 3. Each paraPr contains: align, heading, breakSetting, autoSpacing, switch (with case+default), border
 4. The hp:switch contains hp:case (required-namespace=HwpUnitChar) and hp:default with identical margin/lineSpacing content
@@ -27,6 +27,7 @@ The `<hh:paraProperties>` section defines paragraph formatting (margins, spacing
    | 13 | LEFT     | NUMBER/1/1  | 1     | 0            | 800/1600/0/0/200                      | 160%        | 2               | Ordered L2 |
    | 14 | LEFT     | NUMBER/1/2  | 2     | 0            | 800/2400/0/0/200                      | 160%        | 2               | Ordered L3 |
    | 15 | LEFT     | NONE/0/0    | 0     | 0            | 0/0/0/400/400                         | 100%        | 7               | Horiz. Rule |
+   | 16 | LEFT     | NONE/0/0    | 0     | 0            | 0/600/0/200/200                       | 160%        | 8               | Blockquote |
 
 ## Test
 `tests/test_header_xml.py::TestParaProperties`
