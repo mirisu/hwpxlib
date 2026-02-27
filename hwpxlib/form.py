@@ -197,6 +197,149 @@ class HwpxForm:
             rows.append(row)
         return rows
 
+    def get_fields(self, section_index: int = 0) -> list:
+        """Auto-detect label→value pairs across all tables.
+
+        Scans tables for cells that look like labels (short text ending in
+        common suffixes, or cells followed by empty/example-data cells).
+        Returns list of dicts with label, value, and position info.
+
+        Returns:
+            List of {label, value, table, row, col_label, col_value} dicts.
+        """
+        if section_index >= len(self._section_paths):
+            return []
+        path = self._section_paths[section_index]
+        tree = self._xml_files[path]
+        root = tree.getroot()
+
+        ns_hp = _NS["hp"]
+        tables = root.findall(f'.//{{{ns_hp}}}tbl')
+        fields = []
+
+        for ti, tbl in enumerate(tables):
+            rows = []
+            for tr in tbl.findall(f'{{{ns_hp}}}tr'):
+                row = []
+                for tc in tr.findall(f'{{{ns_hp}}}tc'):
+                    cell_texts = []
+                    for t_elem in tc.iter():
+                        if t_elem.tag == f'{{{ns_hp}}}t' and t_elem.text:
+                            cell_texts.append(t_elem.text)
+                    row.append(''.join(cell_texts))
+                rows.append(row)
+
+            for ri, row in enumerate(rows):
+                for ci in range(len(row) - 1):
+                    label = row[ci].strip()
+                    if not label:
+                        continue
+                    # Skip cells that look like data (long text, numbers only)
+                    if len(label) > 40:
+                        continue
+                    value = row[ci + 1].strip() if ci + 1 < len(row) else ''
+                    fields.append({
+                        'label': label,
+                        'value': value,
+                        'table': ti,
+                        'row': ri,
+                        'col_label': ci,
+                        'col_value': ci + 1,
+                    })
+        return fields
+
+    def fill_by_label(self, label: str, value: str,
+                      table_index: int = None, direction: str = "right",
+                      match: str = "contains",
+                      section_index: int = 0) -> "HwpxForm":
+        """Find a cell containing label text and fill the adjacent cell.
+
+        Args:
+            label: Text to search for in table cells.
+            value: Text to write in the adjacent cell.
+            table_index: Limit search to specific table (None = all tables).
+            direction: "right" (fill cell to the right) or "below" (fill cell below).
+            match: "contains" (label in cell text), "exact" (cell text == label),
+                   or "startswith" (cell text starts with label).
+            section_index: Which section (0-based).
+
+        Returns:
+            self (for chaining).
+
+        Raises:
+            KeyError: If label is not found in any table cell.
+        """
+        if section_index >= len(self._section_paths):
+            raise IndexError(f"Section {section_index} not found")
+        path = self._section_paths[section_index]
+        tree = self._xml_files[path]
+        root = tree.getroot()
+
+        ns_hp = _NS["hp"]
+        tables = root.findall(f'.//{{{ns_hp}}}tbl')
+
+        search_range = [table_index] if table_index is not None else range(len(tables))
+
+        for ti in search_range:
+            if ti >= len(tables):
+                continue
+            tbl = tables[ti]
+            trs = tbl.findall(f'{{{ns_hp}}}tr')
+
+            for ri, tr in enumerate(trs):
+                tcs = tr.findall(f'{{{ns_hp}}}tc')
+                for ci, tc in enumerate(tcs):
+                    cell_text = self._get_cell_text(tc, ns_hp)
+                    if not self._label_matches(cell_text, label, match):
+                        continue
+
+                    # Found the label — now fill the target cell
+                    if direction == "right":
+                        if ci + 1 < len(tcs):
+                            self._set_cell_text(tcs[ci + 1], value, ns_hp)
+                            return self
+                    elif direction == "below":
+                        if ri + 1 < len(trs):
+                            below_tcs = trs[ri + 1].findall(f'{{{ns_hp}}}tc')
+                            if ci < len(below_tcs):
+                                self._set_cell_text(below_tcs[ci], value, ns_hp)
+                                return self
+
+        raise KeyError(f"Label not found: '{label}'")
+
+    @staticmethod
+    def _label_matches(cell_text: str, label: str, match: str) -> bool:
+        cell_stripped = cell_text.strip()
+        if not cell_stripped:
+            return False
+        if match == "exact":
+            return cell_stripped == label
+        if match == "startswith":
+            return cell_stripped.startswith(label)
+        # "contains" (default)
+        return label in cell_stripped
+
+    @staticmethod
+    def _get_cell_text(tc, ns_hp: str) -> str:
+        texts = []
+        for t_elem in tc.iter():
+            if t_elem.tag == f'{{{ns_hp}}}t' and t_elem.text:
+                texts.append(t_elem.text)
+        return ''.join(texts)
+
+    @staticmethod
+    def _set_cell_text(tc, text: str, ns_hp: str) -> None:
+        for t_elem in tc.iter():
+            if t_elem.tag == f'{{{ns_hp}}}t':
+                t_elem.text = text
+                return
+        # No hp:t found — add one to first hp:run
+        for run in tc.iter():
+            if run.tag == f'{{{ns_hp}}}run':
+                t_new = ET.SubElement(run, f'{{{ns_hp}}}t')
+                t_new.text = text
+                return
+
     def fill_table_cell(self, table_index: int, row: int, col: int,
                         text: str, section_index: int = 0) -> "HwpxForm":
         """Fill a specific table cell by position.

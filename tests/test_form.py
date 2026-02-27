@@ -197,3 +197,65 @@ class TestSave:
         assert rows[1][1] == "라운드트립"
         # Unfilled placeholders should survive
         assert "{{신청기관}}" in rows[2][1]
+
+
+class TestFillByLabel:
+    def test_fill_by_label_basic(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        form.fill_by_label("사업명", "라벨로 찾은 사업")
+        rows = form.get_table_text(table_index=0)
+        assert rows[1][1] == "라벨로 찾은 사업"
+
+    def test_fill_by_label_contains(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        # "신청기관" is a label cell; "contains" match should find it
+        form.fill_by_label("신청", "(주)테스트")
+        rows = form.get_table_text(table_index=0)
+        assert rows[2][1] == "(주)테스트"
+
+    def test_fill_by_label_exact(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        form.fill_by_label("대표자", "김영희", match="exact")
+        rows = form.get_table_text(table_index=0)
+        assert rows[3][1] == "김영희"
+
+    def test_fill_by_label_not_found(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        with pytest.raises(KeyError):
+            form.fill_by_label("존재하지않는라벨", "값")
+
+    def test_fill_by_label_chaining(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        result = form.fill_by_label("사업명", "체이닝")
+        assert result is form
+
+
+class TestGetFields:
+    def test_get_fields_returns_list(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        fields = form.get_fields()
+        assert isinstance(fields, list)
+        assert len(fields) > 0
+
+    def test_get_fields_has_label_keys(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        fields = form.get_fields()
+        for f in fields:
+            assert 'label' in f
+            assert 'value' in f
+            assert 'table' in f
+            assert 'row' in f
+
+    def test_get_fields_finds_table_labels(self, tmp_path):
+        tpl = _make_template(tmp_path)
+        form = HwpxForm.open(tpl)
+        fields = form.get_fields()
+        labels = [f['label'] for f in fields]
+        assert "항목" in labels
